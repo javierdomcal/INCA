@@ -1,0 +1,250 @@
+subroutine wrthfdm2()
+!writes HF and HFL dm2p from wfx
+use geninfo
+use wfxinfo_hf
+!!!We are using physicist notation!!!!!!
+implicit none
+!double precision :: DM2prim, DM2prim_hf, dmnval,hflike
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!Decomposing c1hole!!!!!!!!!!!!!!!!
+double precision :: tot_hf,sqrdm1_hf,densp_hf,tot,densp,sqrdm1
+integer :: i,j,k,l, ios, ik,jl, sm
+write(*,*) "writing diagonal of 1rDMhf exchange"
+open(unit=10, file="dm2hf.dat", form="UNFORMATTED")
+open(unit=11, file="dm1hf.dat", form="UNFORMATTED")
+open(unit=12, file="densphf.dat", form="UNFORMATTED")
+open(unit=13, file="dm2.dat", form="UNFORMATTED")
+open(unit=14, file="dm1.dat", form="UNFORMATTED")
+open(unit=15, file="densp.dat", form="UNFORMATTED")
+open(unit=16, file="c1tot.dat", form="UNFORMATTED")!cutre
+open(unit=17, file="c1s2.dat", form="UNFORMATTED")
+open(unit=18, file="hfls2.dat", form="UNFORMATTED")!!!!OPEN_SHELL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+if (opsh) then
+  do i=1,nprim
+    do k=1,nprim
+       do j=1,nprim
+         do l=1,nprim
+           call DM2prim_hf_oshell(i,j,k,l,tot_hf,densp_hf,sqrdm1_hf)
+           call DM2prim_oshell(i,j,k,l,tot,densp,sqrdm1)
+           write(10) i,j,k,l,tot_hf
+           write(11) i,j,k,l,sqrdm1_hf
+           write(12) i,j,k,l,densp_hf
+           write(13) i,j,k,l,tot
+           write(14) i,j,k,l,sqrdm1
+           write(15) i,j,k,l,densp
+           write(*,*) i,j,k,l, tot, tot_hf
+           write(16) i,j,k,l,tot-tot_hf !compute directly the c1hole
+         end do
+       end do
+     end do
+  end do
+else
+!!!!CLOSED_SHELL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+sm=0   !we are not using symmetry, it wasn't working for some reason.
+write(*,*) "nprim=",nprim
+do i=1,nprim
+  !do k=1,i
+  do k=1,nprim
+    do j=1,nprim
+     ! do l=1,j
+     do l=1,nprim
+!i=7;j=7;k=5;l=5
+!        ik=(i*(i+1)/2)+k
+!        jl=(j*(j+1)/2)+l
+!        if (ik.ge.jl) then
+            !dmnval=DM2prim_hf(i,j,k,l)!-DM2prim(i,j,k,l)
+            call DM2prim_hf(i,j,k,l,tot_hf,densp_hf,sqrdm1_hf)
+            !hflike=DM2prim(i,j,k,l)
+            call DM2prim(i,j,k,l,tot,densp,sqrdm1)
+            write(10) i,j,k,l,tot_hf
+            write(11) i,j,k,l,sqrdm1_hf
+            write(12) i,j,k,l,densp_hf
+            write(13) i,j,k,l,tot
+            write(14) i,j,k,l,sqrdm1
+            write(15) i,j,k,l,densp
+            write(16) i,j,k,l,tot-tot_hf !compute directly the c1hole
+            write(17) i,j,l,k,tot-tot_hf !compute s^2 of c1
+            write(18) i,j,l,k,tot !compute s^2 of c1            !if (abs(dmnval).gt.1d-10) then
+              sm=sm+1
+!              if ((i.eq.k).and.(j.eq.l)) then
+!                    if (ik.eq.jl) then !<ii|ii>
+!                           write(10) i,j,k,l,dmnval
+!                           write(11) i,j,k,l,hflike
+!                    else
+!                           write(10) i,j,k,l,dmnval*2.d0 !<ij|ij>=<ji|ji>
+!                           write(11) i,j,k,l,hflike*2.d0
+!                    end if
+!              else if ((i.eq.k).and.(j.ne.l)) then
+!                 write(10) i,j,k,l,dmnval*4.d0 !<ij|il>=<il|ij>=(ji|li)=<li|ji)
+!                 write(11) i,j,k,l,hflike*4.d0
+!              else if ((i.ne.k).and.(j.eq.l)) then
+!                 write(10) i,j,k,l,dmnval*4.d0
+!                 write(11) i,j,k,l,hflike*4.d0
+!              else if ((i.ne.k).and.(j.ne.l)) then
+!                    if (ik.eq.jl) then
+!
+!                        write(10) i,j,k,l,dmnval*4.d0 !(ij|ij)=(ij|ji)=(ji|ij)=(ji|ji)
+!                                                      !<ii|kk>=<ki|ik>=<ik|ki>=<kk|ii>
+!                        write(11) i,j,k,l,hflike*4.d0
+!                    else
+!                        write(10) i,j,k,l,dmnval*8.d0 !(ij|kl)=(ij|lk)=(ji|kl)=(ji|lk)=
+                      ! write(10)  i,j,k,l,dmnval     !(kl|ij)=(kl|ji)=(lk|ij)=(lk|ji)
+                      ! write(10)  i,j,l,k,dmnval
+                      ! write(10)  j,i,k,l,dmnval     !<ij|kl>=<il|kj>=<kj|il>=<kl|ij>
+                      ! write(10)  j,i,l,k,dmnval     !<ji|lk>=<li|jk>=<jk|li>=<lk|ji>
+                      ! write(10)  k,l,i,j,dmnval
+                      ! write(10)  k,l,j,i,dmnval
+                      ! write(10)  l,k,i,j,dmnval
+                      ! write(10)  l,k,j,i,dmnval
+!                        write(11) i,j,k,l,hflike*8.d0
+!                    end if
+!              else
+!               write(*,*) "Error, other option"
+!              end if
+!            !end if
+!        end if
+      end do
+    end do
+  end do
+end do
+end if
+close(10)
+close(11);close(12);close(13);close(14);close(15); close(16)
+close(17); close(18)
+write(*,*) "sm=", sm
+write(*,*) "End writing DM2HF exchange"
+
+write(*,*) "=== Starting HF DM2 Construction ===" !JD
+write(*,*) "Number of occupied HF orbitals: ", noccmo2 !JD
+write(*,*) "Going to process primitives: ", nprim !JD
+
+! After first few matrix elements are computed
+write(*,*) "Sample DM2 elements:" !JD
+do i=1,2
+    do j=1,2
+        call DM2prim_hf(i,j,i,j,tot_hf,densp_hf,sqrdm1_hf)
+        write(*,*) "DM2(",i,j,i,j,") = ", tot_hf !JD
+    end do
+end do
+end subroutine
+subroutine DM2prim_hf(i,j,k,l,tot_hf,densp_hf,sqrdm1_hf) !this works only for Closed-Shell+Restricted
+ use wfxinfo_hf
+ implicit none
+ double precision, intent(out) :: tot_hf,densp_hf,sqrdm1_hf
+ double precision :: contrib
+ integer, intent(in) :: i,j,k,l
+ integer :: a,b
+ tot_hf=0.d0;densp_hf=0.d0;sqrdm1_hf=0.d0
+
+ write(*,*) "DM2 calculation details:" !JD
+ write(*,*) "Indices:", i,j,k,l !JD
+ write(*,*) "Pre-sum tot_hf:", tot_hf !JD
+
+    do a=1,noccmo2  !si a=b, els espins han de ser contraris per tant no tenim exchange!!
+      do b=1,noccmo2
+        ! if ((Occ2(a).ne.0.d0).or.(Occ2(b).ne.0.d0)) then
+              tot_hf=tot_hf+occ2(a)*occ2(b)*((T2(a,i)*T2(a,k)*T2(b,j)*T2(b,l))-0.5d0*T2(a,i)*T2(b,k)*T2(a,j)*T2(b,l))
+              densp_hf=densp_hf+occ2(a)*occ2(b)*(T2(a,i)*T2(a,k)*T2(b,j)*T2(b,l))!-0.5d0*T2(a,i)*T2(b,k)*T2(a,j)*T2(b,l))*occ2(a)*occ2(b)
+              sqrdm1_hf=sqrdm1_hf-occ2(a)*occ2(b)*0.5d0*T2(a,i)*T2(b,k)*T2(a,j)*T2(b,l)
+       !  end if
+      end do
+    end do
+
+        tot_hf = tot_hf * 0.5d0
+        densp_hf = densp_hf * 0.5d0
+        sqrdm1_hf = sqrdm1_hf * 0.5d0
+write(*,*) "Final tot_hf:", tot_hf !JD
+end subroutine DM2prim_hf
+
+subroutine DM2prim_hf_oshell(i,j,k,l,tot_hf,densp_hf,sqrdm1_hf) !this works only for Open-Shell
+ use wfxinfo_hf
+ implicit none
+ double precision, intent(out) :: tot_hf,densp_hf,sqrdm1_hf
+ integer, intent(in) :: i,j,k,l
+ integer :: a,b
+ double precision :: hf_aa, hf_bb, hf_ab !spin parts of dm2
+ double precision :: densp_hf_a, densp_hf_b !spin parts of density
+ double precision :: sqrdm1_a, sqrdm1_b
+ tot_hf=0.d0;densp_hf=0.d0;sqrdm1_hf=0.d0
+ hf_aa=0.d0; hf_bb=0.d0; hf_ab=0.d0
+ densp_hf_a=0.d0; densp_hf_b=0.d0
+ sqrdm1_a=0.d0; sqrdm1_b=0.d0
+    do a=1,nalfaorb2
+      do b=1,nalfaorb2
+          hf_aa=hf_aa+(T_a2(a,i)*T_a2(a,k)*T_a2(b,j)*T_a2(b,l))-T_a2(a,i)*T_a2(b,k)*T_a2(a,j)*T_a2(b,l)
+          densp_hf_a=densp_hf_a+T_a2(a,i)*T_a2(a,k)*T_a2(b,j)*T_a2(b,l)
+          sqrdm1_a=sqrdm1_a-T_a2(a,i)*T_a2(b,k)*T_a2(a,j)*T_a2(b,l)
+      end do
+    end do
+    do a=1,nbetaorb2
+      do b=1,nbetaorb2
+          hf_bb=hf_bb+(T_b2(a,i)*T_b2(a,k)*T_b2(b,j)*T_b2(b,l))-T_b2(a,i)*T_b2(b,k)*T_b2(a,j)*T_b2(b,l)
+          densp_hf_b=densp_hf_b+T_b2(a,i)*T_b2(a,k)*T_b2(b,j)*T_b2(b,l)
+          sqrdm1_b=sqrdm1_b-T_b2(a,i)*T_b2(b,k)*T_b2(a,j)*T_b2(b,l)
+      end do
+    end do
+    do a=1,nalfaorb2
+      do b=1,nbetaorb2
+          hf_ab=hf_ab+(T_a2(a,i)*T_a2(a,k)*T_b2(b,j)*T_b2(b,l))
+      end do
+    end do
+    tot_hf=hf_aa+hf_bb+hf_ab
+    densp_hf=densp_hf_a+densp_hf_b+hf_ab
+    sqrdm1_hf=sqrdm1_a+sqrdm1_b
+end subroutine DM2prim_hf_oshell
+subroutine DM2prim(i,j,k,l,tot,densp,sqrdm1) !computes a HFlike dm2 in primitives from .wfx file, RESTRICTED
+ use wfxinfo              !the exact dm2 cannot be computed because we need the CI
+ implicit none            !expansion coefficients that aren't available at .wfx
+ double precision,intent(out) :: tot,densp,sqrdm1
+ integer, intent(in) :: i,j,k,l
+ integer :: a,b 
+ 
+ tot=0.d0; sqrdm1=0.d0; densp=0.d0
+    do a=1,noccmo
+      do b=1,noccmo
+         !if ((Occ(a).ne.0.d0).or.(Occ(b).ne.0.d0)) then
+           !write(*,*) a,b,occ(a), occ(b), T(a,i)*T(a,k)*T(b,j)*T(b,l), T(a,i)*T(b,k)*T(a,j)*T(b,l)
+           tot=tot+occ(a)*occ(b)*(T(a,i)*T(a,k)*T(b,j)*T(b,l)-0.5d0*T(a,i)*T(b,k)*T(a,j)*T(b,l))
+           densp=densp+occ(a)*occ(b)*(T(a,i)*T(a,k)*T(b,j)*T(b,l))!-0.5d0*T(a,i)*T(b,k)*T(a,j)*T(b,l))
+           sqrdm1=sqrdm1-occ(a)*occ(b)*0.5d0*T(a,i)*T(b,k)*T(a,j)*T(b,l)
+         !end if
+      end do
+    end do
+end subroutine DM2prim
+
+subroutine DM2prim_oshell(i,j,k,l,tot,densp,sqrdm1) !this works only for Open-Shell
+ use wfxinfo
+ implicit none
+ double precision, intent(out) :: tot,densp,sqrdm1
+ integer, intent(in) :: i,j,k,l
+ integer :: a,b
+ double precision :: d_aa, d_bb, d_ab !spin parts of dm2
+ double precision :: densp_a, densp_b !spin parts of density
+  double precision :: sqrdm1_a, sqrdm1_b
+ tot=0.d0;densp=0.d0;sqrdm1=0.d0
+ d_aa=0.d0; d_bb=0.d0; d_ab=0.d0
+ densp_a=0.d0; densp_b=0.d0
+ sqrdm1_a=0.d0; sqrdm1_b=0.d0
+    do a=1,nalfaorb
+      do b=1,nalfaorb
+          d_aa=d_aa+(T_a(a,i)*T_a(a,k)*T_a(b,j)*T_a(b,l))-T_a(a,i)*T_a(b,k)*T_a(a,j)*T_a(b,l)
+          densp_a=densp_a+T_a(a,i)*T_a(a,k)*T_a(b,j)*T_a(b,l)
+          sqrdm1_a=sqrdm1_a-T_a(a,i)*T_a(b,k)*T_a(a,j)*T_a(b,l)
+      end do
+    end do
+    do a=1,nbetaorb
+      do b=1,nbetaorb
+          d_bb=d_bb+(T_b(a,i)*T_b(a,k)*T_b(b,j)*T_b(b,l))-T_b(a,i)*T_b(b,k)*T_b(a,j)*T_b(b,l)
+          densp_b=densp_b+T_b(a,i)*T_b(a,k)*T_b(b,j)*T_b(b,l)
+          sqrdm1_b=sqrdm1_b-T_b(a,i)*T_b(b,k)*T_b(a,j)*T_b(b,l)
+      end do
+    end do
+    do a=1,nalfaorb
+      do b=1,nbetaorb
+          d_ab=d_ab+(T_a(a,i)*T_a(a,k)*T_b(b,j)*T_b(b,l))
+      end do
+    end do
+    tot=d_aa+d_bb+d_ab
+    densp=densp_a+densp_b+d_ab
+    sqrdm1=sqrdm1_a+sqrdm1_b
+end subroutine DM2prim_oshell

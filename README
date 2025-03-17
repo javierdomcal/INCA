@@ -1,0 +1,13 @@
+Clean version of INCA program. Trying to organize subroutines and all stuff properly. 
+
+30/11/2023
+
+-Detected a problem with I(r)=I(-r) symmetry in this version. Now I'm not using this anymore. 
+-Corrected centercalc subroutine
+-Changing the different options
+
+
+
+
+
+
