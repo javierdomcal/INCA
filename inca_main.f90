@@ -85,31 +85,31 @@ if (option == "property" .or. any(density_properties_enabled) .or. &
         if (is_property_enabled("Electron Density")) then
             write(*,*) "Generating electron density cube file..."
             call write_cube_file("density.cube", "Electron Density", &
-                               density_adapter, grid_3d)
+                               density_adapter, grid)
         endif
 
         if (is_property_enabled("Alpha Density")) then
             write(*,*) "Generating alpha density cube file..."
             call write_cube_file("alpha_density.cube", "Alpha Electron Density", &
-                               alpha_density_adapter, grid_3d)
+                               alpha_density_adapter, grid)
         endif
 
         if (is_property_enabled("Beta Density")) then
             write(*,*) "Generating beta density cube file..."
             call write_cube_file("beta_density.cube", "Beta Electron Density", &
-                               beta_density_adapter, grid_3d)
+                               beta_density_adapter, grid)
         endif
 
         if (is_property_enabled("Spin Density")) then
             write(*,*) "Generating spin density cube file..."
             call write_cube_file("spin_density.cube", "Spin Density", &
-                               spin_density_adapter, grid_3d)
+                               spin_density_adapter, grid)
         endif
 
         if (is_property_enabled("HF Density")) then
             write(*,*) "Generating Hartree-Fock density cube file..."
             call write_cube_file("hf_density.cube", "Hartree-Fock Density", &
-                               hf_density_adapter, grid_3d)
+                               hf_density_adapter, grid)
         endif
     endif
 
@@ -145,19 +145,19 @@ if (option == "property" .or. any(density_properties_enabled) .or. &
         if (is_property_enabled("Full Pair Density")) then
             write(*,*) "Generating full pair density cube file..."
             call write_cube2_file("full_pair_density.cube", "Full Pair Density", &
-                                full_pd_adapter, grid_6d)
+                                full_pd_adapter, grid, grid_2)
         endif
 
         if (is_property_enabled("C1 Pair Density")) then
             write(*,*) "Generating C1 pair density cube file..."
             call write_cube2_file("c1_pair_density.cube", "C1 Pair Density", &
-                                c1_pd_adapter, grid_6d)
+                                c1_pd_adapter, grid, grid_2)
         endif
 
         if (is_property_enabled("C2 Pair Density")) then
             write(*,*) "Generating C2 pair density cube file..."
             call write_cube2_file("c2_pair_density.cube", "C2 Pair Density", &
-                                c2_pd_adapter, grid_6d)
+                                c2_pd_adapter, grid, grid_2)
         endif
 
         ! Cleanup pair density module
@@ -177,7 +177,7 @@ if (option == "property" .or. any(density_properties_enabled) .or. &
         ! Generate cube file for indicator dynamic
         write(*,*) "Generating indicator dynamic cube file..."
         call write_cube_file("indicator_dynamic.cube", "Indicator Dynamic", &
-                           indicator_at_point, grid_3d)
+                           indicator_at_point, grid)
     endif
 
     write(*,*) "=== Property-based calculations completed ==="
@@ -357,90 +357,42 @@ if (logfilename.ne.'no') then
 endif
 
 ! Process either legacy options or new property-based format
-rewind 3
-if (scan_to_location(3, "$Grid")) then
-    ! New property-based input format
-    option = "property"  ! Set option to property mode
 
-    ! Read grid dimensions
-    read(3, *) ndims
 
-    ! Initialize grid parameters based on dimensionality
-    if (ndims == 3) then
-        call allocate_grid_parameters(grid_3d, 3)
 
-        ! Read each dimension
+    ! Check for any inactive dimensions
+    rewind 3
+    call locate(3, "$Grid")
+    do i = 1, 3
+        read(3, *, iostat=io_stat) max_val, step_size
+            grid%max_val(i) = max_val
+            grid%step_size(i) = step_size
+    enddo
+
+    rewind 3
+    call locate(3, "$Grid_2")
+    read(3, *) Grid_2
+
+    rewind 3
+    call locate(3, "$Grid_2")
+    if (Grid_2) then
+        do i = 1,3  !
+            read(3, *, iostat=io_stat) max_val, step_size
+            grid_2%max_val(i) = max_val
+            grid_2%step_size(i) = step_size
+        enddo
+    else
         do i = 1, 3
-            read(3, *) max_val, step_size
-            grid_3d%max_vals(i) = max_val
-            grid_3d%step_sizes(i) = step_size
-            grid_3d%active_dims(i) = .true.
-        enddo
-
-        ! Check for any inactive dimensions (specified by "no")
-        rewind 3
-        call locate(3, "$Grid")
-        read(3, *) ndims  ! Skip dimensions line
-        do i = 1, 3
-            read(3, *, iostat=io_stat) max_val, step_size, keyword
-            if (io_stat == 0) then
-                if (trim(keyword) == "no") then
-                    grid_3d%active_dims(i) = .false.
-                endif
-            endif
-        enddo
-
-        ! Create 6D grid from 3D grid for pair properties if needed
-        call allocate_grid_parameters(grid_6d, 6)
-        do i = 1, 3
-            grid_6d%max_vals(i) = grid_3d%max_vals(i)
-            grid_6d%max_vals(i+3) = grid_3d%max_vals(i)
-
-            grid_6d%step_sizes(i) = grid_3d%step_sizes(i)
-            grid_6d%step_sizes(i+3) = grid_3d%step_sizes(i)
-
-            grid_6d%active_dims(i) = grid_3d%active_dims(i)
-            grid_6d%active_dims(i+3) = grid_3d%active_dims(i)
-        enddo
-    else if (ndims == 6) then
-        ! Direct 6D grid specification
-        call allocate_grid_parameters(grid_6d, 6)
-
-        ! Read each dimension
-        do i = 1, 6
-            read(3, *) max_val, step_size
-            grid_6d%max_vals(i) = max_val
-            grid_6d%step_sizes(i) = step_size
-            grid_6d%active_dims(i) = .true.
-        enddo
-
-        ! Check for any inactive dimensions
-        rewind 3
-        call locate(3, "$Grid")
-        read(3, *) ndims  ! Skip dimensions line
-        do i = 1, 6
-            read(3, *, iostat=io_stat) max_val, step_size, keyword
-            if (io_stat == 0) then
-                if (trim(keyword) == "no") then
-                    grid_6d%active_dims(i) = .false.
-                endif
-            endif
-        enddo
-
-        ! Also create 3D grid for single properties
-        call allocate_grid_parameters(grid_3d, 3)
-        do i = 1, 3
-            grid_3d%max_vals(i) = grid_6d%max_vals(i)
-            grid_3d%step_sizes(i) = grid_6d%step_sizes(i)
-            grid_3d%active_dims(i) = grid_6d%active_dims(i)
+            grid_2%max_val(i) = grid%max_val(i)
+            grid_2%step_size(i) = grid%step_size(i)
         enddo
     endif
+
 
     ! Read property specifications
     if (scan_to_location(3, "$Properties")) then
         ! Allocate property flags with reasonable defaults
-        max_properties = 10  ! Default maximum
-        max_pair_properties = 5  ! Default maximum
+        max_properties = 100  ! Default maximum
 
         allocate(density_properties_enabled(5))  ! total, alpha, beta, spin, hf
         allocate(pair_density_properties_enabled(3))  ! full, c1, c2
@@ -645,20 +597,7 @@ contains
         found = index(trim(line_lower), trim(word_lower)) > 0
     end function scan_words
 
-    ! Helper function to allocate grid parameters
-    subroutine allocate_grid_parameters(grid, dims)
-        type(grid_parameters), intent(out) :: grid
-        integer, intent(in) :: dims
 
-        grid%ndims = dims
-        allocate(grid%max_vals(dims))
-        allocate(grid%step_sizes(dims))
-        allocate(grid%active_dims(dims))
-
-        grid%max_vals = 0.0d0
-        grid%step_sizes = 0.0d0
-        grid%active_dims = .false.
-    end subroutine allocate_grid_parameters
 
     ! Helper function to convert string to lowercase
     subroutine to_lowercase(str)
