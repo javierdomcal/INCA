@@ -1,0 +1,38 @@
+# Compiled objects and modules
+*.o
+*.mod
+*.a
+*.so
+*.dylib
+*.exe
+*.out
+*.app
+roda.x
+
+# Temporary and backup files
+*~
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# Build directories
+/obj/
+/build/
+/bin/
+
+# Large data files
+*.fchk
+*.wfx
+*.cube
+*.dat
+
+# System-specific files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Specific files you mentioned that are not source code
+pkg-config
