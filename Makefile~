@@ -1,38 +1,105 @@
-#
-#Makefile for RODA program, find a better name (;
-#
-ODIR=obj
-FC=ifort
-#FC=gfortran
+# Makefile for RODA program
+ODIR = obj
+FC = ifort
+FFLAGS = -O3 -g
 
-#FFLAGS2= -Wall -g -msse4.2 -fcheck=all -Waliasing -Wampersand -Wconversion -Wsurprising -Wintrinsics-std -Wno-tabs -Wintrinsic-shadow -Wline-truncation -Wreal-q-constant
-FFLAGS= -o
-#FFLAGS = -g
-LIB= -llapack -lblas
-LIBPATH=-L/dipc/markelgtx 
-SRCF90=$(wildcard *.f90)
-SRCF=$(wildcard *.f)
+# Libraries
+LIBS = -llapack -lblas -qmkl
 
-#OBJ=$(SRCF90:.f90=.o) $(SRCF:.f=.o)
-OBJ=$(patsubst %.f90,$(ODIR)/%.o,$(SRCF90)) $(patsubst %.f,$(ODIR)/%.o,$(SRCF))
+# Define all object files
+OBJS = $(ODIR)/mod5.o \
+       $(ODIR)/cube.o \
+       $(ODIR)/properties.o \
+       $(ODIR)/density_properties.o \
+       $(ODIR)/pair_density.o \
+       $(ODIR)/correlation_indicators.o \
+       $(ODIR)/functions.o \
+       $(ODIR)/derive.o \
+       $(ODIR)/lebedev.o \
+       $(ODIR)/intrastuff.o \
+       $(ODIR)/gridpoints.o \
+       $(ODIR)/integrals.o \
+       $(ODIR)/read_files.o \
+       $(ODIR)/c1hole.o \
+       $(ODIR)/gen_cube.o \
+       $(ODIR)/intracule.o \
+       $(ODIR)/dm2phf.o \
+       $(ODIR)/scan_utils.o \
+       $(ODIR)/on_top.o \
+       $(ODIR)/inca_main.o
 
-$(ODIR)/%.o: %.f90 
-	$(FC) $(FFLAGS) $(ODIR)/mod5.o -c mod5.f90 -O3
-	$(FC) $(FFLAGS) $@ -c $< -O3
+# Create object directory
 
-$(ODIR)/%.o: %.f
-	$(FC) $(FFLAGS) $@ -c $< -O3
-
-
-roda.x: $(OBJ)
-	$(FC) $(OBJ) $(FFLAGS) $@ -qmkl -O3
+# Default target - make this depend on the obj directory
+roda.x: $(ODIR) $(OBJS)
+	$(FC) $(FFLAGS) $(OBJS) -o $@ $(LIBS)
 	rm -f *.mod
 
+# Compilation rules with explicit dependencies
+$(ODIR)/mod5.o: mod5.f90 | $(ODIR)
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/cube.o: cube.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/properties.o: properties.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+
+$(ODIR)/density_properties.o: density_properties.f90 $(ODIR)/properties.o $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/pair_density.o: pair_density.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/correlation_indicators.o: correlation_indicators.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/functions.o: functions.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/derive.o: derive.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/lebedev.o: lebedev.f | $(ODIR)
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/intrastuff.o: intrastuff.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/gridpoints.o: gridpoints.f90 $(ODIR)/mod5.o $(ODIR)/lebedev.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/integrals.o: integrals.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/read_files.o: read_files.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/c1hole.o: c1hole.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/gen_cube.o: gen_cube.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/intracule.o: intracule.f90 $(ODIR)/mod5.o $(ODIR)/intrastuff.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/dm2phf.o: dm2phf.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/scan_utils.o: scan_utils.f90 $(ODIR)/mod5.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(ODIR)/on_top.o: on_top.f90 $(ODIR)/mod5.o $(ODIR)/scan_utils.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+
+$(ODIR)/inca_main.o: inca_main.f90 $(ODIR)/mod5.o $(ODIR)/cube.o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+# Clean up
 clean:
-	@rm -f *.mod $(ODIR)/*.o roda	
+	rm -rf $(ODIR) *.mod roda.x
 
-#Testing
-test: 
-	./test.sh >& test.log
-
-
+.PHONY: clean

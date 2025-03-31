@@ -1,8 +1,29 @@
-!------------------------------------------------------------------------------------------
+module cube_utils
+   implicit none
+   logical :: generate_cube
+   double precision, dimension(3) :: cube_origin
+   double precision, dimension(3) :: cube_spacing
+   integer, dimension(3) :: cube_points
+   character*40 :: cube_filename
+end module cube_utils
+
+module on_top_cube
+   implicit none
+   logical :: compute_on_top
+   double precision, allocatable, dimension(:,:) :: on_top_density
+   character*40 :: on_top_cube_filename
+end module on_top_cube
+
+module pair_density
+   implicit none
+   logical :: compute_pair_density
+   double precision, allocatable, dimension(:,:) :: pair_density_matrix
+   character*40 :: pair_density_filename
+end module pair_density
 
 module inputdat
 implicit none
- logical :: readwfx, readlog, cube, primcube, aocube, MOcube, denscube, gradient, laplacian, intracalc, id, ontop_hf
+ logical :: readwfx, readlog, cube_flag, primcube, aocube, MOcube, denscube, gradient, laplacian, intracalc, id, ontop_hf
  logical :: dmn
  character*80 :: option
  !!!!!!!!!!!input filenames!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -27,7 +48,30 @@ implicit none
  character*1, allocatable :: scan_directions(:)
  integer :: n_atoms_scan, n_directions
  real*8 :: end_distance, step_size
+ logical :: ontop_cube_output
 
+ ! Add to the existing module inputdat
+logical, allocatable :: density_properties_enabled(:)  ! Array for enabled density properties
+logical, allocatable :: pair_density_properties_enabled(:)  ! Array for enabled pair density properties
+logical :: indicator_dynamic_enabled  ! Flag for indicator dynamic
+
+character(len=10) :: density_output_type  ! "total", "alpha", "beta", "spin", "hf", "all"
+character(len=10) :: pair_density_output_type  ! "full", "c1", "c2", "all"
+
+    type :: grid_parameters
+        integer :: ndims
+        double precision, allocatable, dimension(:) :: max_vals
+        double precision, allocatable, dimension(:) :: step_sizes
+        logical, allocatable, dimension(:) :: active_dims
+    end type grid_parameters
+
+type(grid_parameters) :: grid_3d  ! 3D grid parameters
+type(grid_parameters) :: grid_6d  ! 6D grid parameters
+
+integer :: max_properties  ! Maximum number of single properties
+integer :: max_pair_properties  ! Maximum number of pair properties
+
+character(len=10) :: grid_3d_tag  ! Should be "$Grid3D"
 end module inputdat
 
 !----------------------------------------------------------------------------------------------------
@@ -44,7 +88,7 @@ end module cubeinfo
 !-----------------------------------------------------------------------------------------------------
 
 module quadinfo1
-implicit none  ! Angular and radial integral 
+implicit none  ! Angular and radial integral
 logical :: autoc                                       !calculate centres automatically (Becke)
 logical :: radial_integral                    !=.true. integral of radial intra from 0 to infty
 character*40 :: int_mom_name
@@ -98,13 +142,13 @@ module geninfo           !general information, can be obtained from .wfx files.
   integer, allocatable, dimension(:,:) :: TMN !matrix with t,m,n coeficients
   double precision, allocatable,  dimension(:,:) :: cartes !nuclear cartesian coordinates
   integer, allocatable, dimension(:) :: an !atomic number
-  double precision, allocatable, dimension(:) :: chrg !nuclear charge  
-  double precision, parameter :: pi=4.d0*datan(1.d0) 
+  double precision, allocatable, dimension(:) :: chrg !nuclear charge
+  double precision, parameter :: pi=4.d0*datan(1.d0)
 end module
 
 !--------------------------------------------------------------------------------------------------------
 
-module wfxinfo !especific data of wfx files 
+module wfxinfo !especific data of wfx files
   implicit none
   logical :: corr   !correlated method
   logical :: uhf   !unrestricted-restricted Hartree Fock???
@@ -127,7 +171,7 @@ module wfxinfo_hf
   double precision, allocatable, dimension(:) :: Occ2   !ocupancies of orbitals
   !for open-shell
   double precision, allocatable, dimension(:,:) :: T_a2 !Alpha MOs coeficients
-  double precision, allocatable, dimension(:,:) :: T_b2 !Beta MOs coeficients  
+  double precision, allocatable, dimension(:,:) :: T_b2 !Beta MOs coeficients
   integer :: nalfaorb2, nbetaorb2
 end module wfxinfo_hf
 
@@ -136,18 +180,18 @@ end module wfxinfo_hf
 module holes
    implicit none
    double precision,allocatable,dimension(:) :: hfintra,sdintra,corrintra
-end module holes      
+end module holes
 
 !----------------------------------------------------------------------------------------
 
  module loginfo
-   implicit none 
+   implicit none
    double precision, allocatable, dimension(:) :: Flg, N_prim !fixed expansion coeficient for the contraction of AOs into primitives, normalization constant for the primitives
    double precision, allocatable, dimension(:,:) :: Ckalk !expansion coeficient of MOs in AOs
    integer, allocatable, dimension(:) :: npao !number of primitives for each atomic orbital
    integer :: nao !number of atomic orbitals in the molecule
-   integer, allocatable, dimension(:) :: aotyp !type of atomic orbital: s->0, px, py, pz ->1,  ...   
-end module loginfo   
+   integer, allocatable, dimension(:) :: aotyp !type of atomic orbital: s->0, px, py, pz ->1,  ...
+end module loginfo
 
 !------------------------------------------------------------------------------------------
 
@@ -172,7 +216,7 @@ integer, allocatable, dimension(:) :: smrd
 integer :: np2 !number of grid points
 double precision, allocatable, dimension(:,:) :: r2 !grid points
 double precision, allocatable, dimension(:) :: radi !distances of the scan
-integer :: nradi 
+integer :: nradi
 double precision, allocatable, dimension(:) :: w2 !weight
 double precision, allocatable, dimension(:) :: I_vec2
 end module
@@ -188,9 +232,9 @@ end module
 module fractions
    double precision, parameter :: hr=1.d0*(3.d0**(-1.d0))
    double precision, parameter :: boh=5.d0*(3.d0**(-1.d0))
-   double precision, parameter :: bs=1.d0*(6.d0**(-1.d0)) 
+   double precision, parameter :: bs=1.d0*(6.d0**(-1.d0))
    double precision, parameter :: bih=2.d0*(3.d0**(-1.d0))
-end module fractions        
+end module fractions
 
 !-------------------------------------------------------------------------------------------------
 
@@ -212,9 +256,9 @@ end module radis
 !----------------------------------------------------------------------------------------
 
 module located
-        contains      
+        contains
                 subroutine locate(iunit,string)
-                integer :: ii        
+                integer :: ii
                 integer iunit
                 character string*(*)
                 character*80 linia
@@ -237,7 +281,7 @@ end module located
 module coeff
         double precision, allocatable, dimension(:) :: C_x,C_y,C_z !coefficients of V
         double precision, dimension(3) :: Lrtot
-end module coeff        
+end module coeff
 
 !---------------------------------------------------------------------------------------
 
