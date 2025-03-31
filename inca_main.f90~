@@ -2,128 +2,306 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 program wavefunction !main program
 !!!!!reads .wfx and .log files and performs calculations about this info
-use inputdat  !information about the calculations we want to do
+use inputdat        !information about the calculations we want to do
+use properties      !property management system (if enabled in compile)
+use density_properties     !For density property calculations
+use pair_density_module    !For pair density calculations
+use correlation_indicators !For indicator dynamic calculations
+use cube_module            !For cube file output
 implicit none
 integer :: a !defines to subroutine cubefile what function we want to represent: prim, ao, mo, dens
-double precision, allocatable, dimension(:,:) :: r1,r2,r3!nodes
+double precision, allocatable, dimension(:,:) :: r1,r2,r3 !nodes
 character*80 :: dm2p,dm2phf,dm2phfl, dm2pc1 !name of the DM2 files
 
 !provisional stuff
 character*80 :: dm1name, namerad
 
-readwfx=.false. 
-readlog=.false. 
+readwfx=.false.
+readlog=.false.
 
 call readinput()
 
-write(*,*) "=== Starting Main Program ===" !JD
-write(*,*) "Option selected: ", option !JD
-write(*,*) "ontop_hf flag: ", ontop_hf !JD
-write(*,*) "dm2name: ", trim(dm2name) !JD
+write(*,*) "=== Starting Main Program ==="
+write(*,*) "Option selected: ", option
+write(*,*) "ontop_hf flag: ", ontop_hf
+write(*,*) "dm2name: ", trim(dm2name)
 
-! Add just before the ontop section
-write(*,*) "=== Entering On-top Calculation ===" !JD
-if (ontop_hf) then
-    write(*,*) "Using HF path" !JD
-    write(*,*) "WFX file: ", trim(wfxfilename) !JD
-else
-    write(*,*) "Using CASSCF path" !JD
-    write(*,*) "DM2 file: ", trim(dm2name) !JD
+! Read wave function files if specified
+if (readwfx) call filewfx(wfxfilename)  !reads info from a wfx file
+if (readlog) call filelog(logfilename)  !reads info from a log file
+
+! Initialize properties system if needed
+if (option == "property" .or. any(density_properties_enabled) .or. &
+    any(pair_density_properties_enabled) .or. indicator_dynamic_enabled) then
+    write(*,*) "Initializing property system..."
+    call initialize_properties(max_properties, max_pair_properties)
 endif
 
-if (readwfx) call filewfx(wfxfilename)  !reads info from a wfx file 
-if (readlog) call filelog(logfilename)  !reads info from a log file
-if ((option.ne.'no').and.(option.ne.'ontop')) call readintra(nameinp,dm2p, dm2phf,dm2phfl)    !read intracule info from input file
+! If needed, read intracule information from input file for legacy or C1/C2 pair density
+if ((option.ne.'no').and.(option.ne.'ontop').and.(option.ne.'property')) then
+    call readintra(nameinp, dm2p, dm2phf, dm2phfl)
+endif
 
-if (cube) then
-   if (primcube) then  
-      a=1
-      call cubefile(a,nameprim) !Generate cubefile with a Primitive
-   end if
+! Handle property-based calculations
+if (option == "property" .or. any(density_properties_enabled) .or. &
+    any(pair_density_properties_enabled) .or. indicator_dynamic_enabled) then
 
-   if (aocube) then 
-      a=2
-      call cubefile(a,nameao)  !Generate cubefile with AO
-   end if
+    write(*,*) "=== Running property-based calculations ==="
 
-   if (mocube) then 
-      a=3
-      call cubefile(a,namemo) !Generate cubefile with a MO 
-   end if  
+    ! Process density properties
+    if (any(density_properties_enabled)) then
+        write(*,*) "Calculating density properties..."
 
-   if (denscube) then
-      a=5
-      call cubefile(a,namedens) !Generate cubefile with density from MO
-   end if
+        ! Initialize density properties module
+        call initialize_density_properties()
 
-   if (laplacian) then 
-      a=6     
-      call cubefile(a,namelap) !generate a cubefile with laplacian
-   end if
+        ! Enable selected density properties
+        if (density_properties_enabled(1)) then
+            call enable_property("Electron Density")
+            write(*,*) "  Electron density enabled"
+        endif
+
+        if (density_properties_enabled(2)) then
+            call enable_property("Alpha Density")
+            write(*,*) "  Alpha density enabled"
+        endif
+
+        if (density_properties_enabled(3)) then
+            call enable_property("Beta Density")
+            write(*,*) "  Beta density enabled"
+        endif
+
+        if (density_properties_enabled(4)) then
+            call enable_property("Spin Density")
+            write(*,*) "  Spin density enabled"
+        endif
+
+        if (density_properties_enabled(5)) then
+            call enable_property("HF Density")
+            write(*,*) "  HF density enabled"
+        endif
+
+        ! Generate cube files for enabled density properties
+        if (is_property_enabled("Electron Density")) then
+            write(*,*) "Generating electron density cube file..."
+            call write_cube_file("density.cube", "Electron Density", &
+                               density_adapter, grid_3d)
+        endif
+
+        if (is_property_enabled("Alpha Density")) then
+            write(*,*) "Generating alpha density cube file..."
+            call write_cube_file("alpha_density.cube", "Alpha Electron Density", &
+                               alpha_density_adapter, grid_3d)
+        endif
+
+        if (is_property_enabled("Beta Density")) then
+            write(*,*) "Generating beta density cube file..."
+            call write_cube_file("beta_density.cube", "Beta Electron Density", &
+                               beta_density_adapter, grid_3d)
+        endif
+
+        if (is_property_enabled("Spin Density")) then
+            write(*,*) "Generating spin density cube file..."
+            call write_cube_file("spin_density.cube", "Spin Density", &
+                               spin_density_adapter, grid_3d)
+        endif
+
+        if (is_property_enabled("HF Density")) then
+            write(*,*) "Generating Hartree-Fock density cube file..."
+            call write_cube_file("hf_density.cube", "Hartree-Fock Density", &
+                               hf_density_adapter, grid_3d)
+        endif
+    endif
+
+    ! Process pair density properties
+    if (any(pair_density_properties_enabled)) then
+        write(*,*) "Calculating pair density properties..."
+
+        ! Get required DM2 file names if not already set
+        if (dm2p == '') then
+            call readintra(nameinp, dm2p, dm2phf, dm2phfl)
+        endif
+
+        ! Initialize pair density module
+        call initialize_pair_density(dm2p, dm2phf, dm2phfl)
+
+        ! Enable selected pair density properties
+        if (pair_density_properties_enabled(1)) then
+            call enable_property("Full Pair Density")
+            write(*,*) "  Full pair density enabled"
+        endif
+
+        if (pair_density_properties_enabled(2)) then
+            call enable_property("C1 Pair Density")
+            write(*,*) "  C1 pair density enabled"
+        endif
+
+        if (pair_density_properties_enabled(3)) then
+            call enable_property("C2 Pair Density")
+            write(*,*) "  C2 pair density enabled"
+        endif
+
+        ! Generate cube files for enabled pair density properties
+        if (is_property_enabled("Full Pair Density")) then
+            write(*,*) "Generating full pair density cube file..."
+            call write_cube2_file("full_pair_density.cube", "Full Pair Density", &
+                                full_pd_adapter, grid_6d)
+        endif
+
+        if (is_property_enabled("C1 Pair Density")) then
+            write(*,*) "Generating C1 pair density cube file..."
+            call write_cube2_file("c1_pair_density.cube", "C1 Pair Density", &
+                                c1_pd_adapter, grid_6d)
+        endif
+
+        if (is_property_enabled("C2 Pair Density")) then
+            write(*,*) "Generating C2 pair density cube file..."
+            call write_cube2_file("c2_pair_density.cube", "C2 Pair Density", &
+                                c2_pd_adapter, grid_6d)
+        endif
+
+        ! Cleanup pair density module
+        call cleanup_pair_density()
+    endif
+
+    ! Process indicator dynamic property
+    if (indicator_dynamic_enabled) then
+        write(*,*) "Calculating indicator dynamic..."
+
+        ! Initialize indicator dynamic module
+        call initialize_indicators()
+
+        ! Enable indicator dynamic property
+        call enable_property("Indicator Dynamic")
+
+        ! Generate cube file for indicator dynamic
+        write(*,*) "Generating indicator dynamic cube file..."
+        call write_cube_file("indicator_dynamic.cube", "Indicator Dynamic", &
+                           indicator_at_point, grid_3d)
+    endif
+
+    write(*,*) "=== Property-based calculations completed ==="
+endif
+
+! Handle legacy cube file generation if requested
+if (cube_flag) then
+    write(*,*) "=== Generating legacy cube files ==="
+
+    if (primcube) then
+        a=1
+        call cubefile(a,nameprim) !Generate cubefile with a Primitive
+    end if
+
+    if (aocube) then
+        a=2
+        call cubefile(a,nameao)  !Generate cubefile with AO
+    end if
+
+    if (mocube) then
+        a=3
+        call cubefile(a,namemo) !Generate cubefile with a MO
+    end if
+
+    if (denscube) then
+        a=5
+        call cubefile(a,namedens) !Generate cubefile with density from MO
+    end if
+
+    if (laplacian) then
+        a=6
+        call cubefile(a,namelap) !generate a cubefile with laplacian
+    end if
+
+    write(*,*) "=== Legacy cube files generated ==="
 end if
 
-if (option.eq."c1") then !calculate only c1 part of the Coulomb Hole
-   if (dmn) then
-      !call dm2diff(dm2phfl,dm2phf,dm2pc1) WORKING ON IT
-      call gridpoints() !for total integral
-      call gridpoints2() !for radial scan
-      call intracule(dm2pc1, .true.)         
-   else
-      call wfxhf(wfxhfname) !read hf wfx file 
-      call wrthfdm2() !compute dm2 in primitives for HF, FCI (dens, |1rdm|^2, tot) and C1hole
-      call gridpoints() !for total integral
-      call gridpoints2() !for radial scan
-      call intracule(dm2pc1, .false.)       
-   end if       
-   call angular_int() !radial scan of c1
-   call radial_angular()  !integral of c1 and its moments
-end if        
+! Handle on-top calculations (can be via property system or direct option)
+if (option == "ontop" .or. ontop_cube_output) then
+    write(*,*) "=== Entering On-top Calculation ==="
 
-
-if (option.eq."all") then !compute total Coulomb Hole
-   call wfxhf(wfxhfname)
-   call wrthfdm2()
-   call gridpoints()
-   call gridpoints2()
-   call intracule(dm2phf,.false.)
-   call intracule(dm2p,.true.)
-   call intracule(dm2phfl,.false.)
- ! call hole_ops(I_v1,I_v2) !subtract intracules
-   call angular_int()
-   call radial_angular()
-end if        
-
-if (option.eq."c1approx") then !compute approx c1hole with Becke-Roussel model
-   call wfxhf(wfxhfname)    !read wfx of HF calculation (needed to compute dm2hf_prim)
-   call wrthfdm2() !compute dm2 in primitives for HF, FCI (dens, |1rdm|^2, tot) and C1hole
-   call gridpoints() !for total integral
-   call gridpoints2() !for radial scan
-   call intracule("dm1hf.dat",.false.) !compute intracule of |1rdm_hf|^2
-   !compute c1hole
-   call c1hole(90,1.d0)    !compute approximate c1 hole I(s,|1rdm_hf|^2)-\int_{r=0,inf}BRHOLE(r,s)*rho(r)dr
-   call angular_int()
-   call radial_angular()
-end if
-
-
-if (option.eq."intra") then !compute the intracule
-   call gridpoints()
-   call gridpoints2()  
-   call intracule(dm2p,.true.)  
-   call angular_int()
-   call radial_angular()
-   write(*,*) "intracule computed succesfully"
-end if
-
-if (option.eq."ontop") then !compute on top pair density
-    if (ontop_hf) then  ! This is a HF calculation
+    if (ontop_hf) then
+        write(*,*) "Using HF path"
+        write(*,*) "WFX file: ", trim(wfxfilename)
         call wfxhf(wfxfilename)       ! Read HF wfx file
         call wrthfdm2()               ! Compute dm2 in primitives for HF
-        call ontop('dm2hf.dat')           ! Calculate ontop with HF density
-    else                  ! Non-HF calculation
+        call ontop('dm2hf.dat')       ! Calculate ontop with HF density
+    else
+        write(*,*) "Using CASSCF path"
+        write(*,*) "DM2 file: ", trim(dm2name)
         call ontop(dm2name)           ! Original behavior for non-HF
+    endif
+
+    write(*,*) "=== On-top calculation completed ==="
+endif
+
+! Handle legacy Coulomb Hole calculations
+if (option.eq."c1") then !calculate only c1 part of the Coulomb Hole
+    write(*,*) "=== Calculating C1 part of Coulomb Hole ==="
+
+    if (dmn) then
+        !call dm2diff(dm2phfl,dm2phf,dm2pc1) WORKING ON IT
+        call gridpoints() !for total integral
+        call gridpoints2() !for radial scan
+        call intracule(dm2pc1, .true.)
+    else
+        call wfxhf(wfxhfname) !read hf wfx file
+        call wrthfdm2() !compute dm2 in primitives for HF, FCI (dens, |1rdm|^2, tot) and C1hole
+        call gridpoints() !for total integral
+        call gridpoints2() !for radial scan
+        call intracule(dm2pc1, .false.)
     end if
-end if   
+    call angular_int() !radial scan of c1
+    call radial_angular()  !integral of c1 and its moments
+
+    write(*,*) "=== C1 calculation completed ==="
+end if
+
+if (option.eq."all") then !compute total Coulomb Hole
+    write(*,*) "=== Calculating total Coulomb Hole ==="
+
+    call wfxhf(wfxhfname)
+    call wrthfdm2()
+    call gridpoints()
+    call gridpoints2()
+    call intracule(dm2phf,.false.)
+    call intracule(dm2p,.true.)
+    call intracule(dm2phfl,.false.)
+    ! call hole_ops(I_v1,I_v2) !subtract intracules
+    call angular_int()
+    call radial_angular()
+
+    write(*,*) "=== Total Coulomb Hole calculation completed ==="
+end if
+
+if (option.eq."c1approx") then !compute approx c1hole with Becke-Roussel model
+    write(*,*) "=== Calculating approximate C1 hole with Becke-Roussel model ==="
+
+    call wfxhf(wfxhfname)    !read wfx of HF calculation (needed to compute dm2hf_prim)
+    call wrthfdm2() !compute dm2 in primitives for HF, FCI (dens, |1rdm|^2, tot) and C1hole
+    call gridpoints() !for total integral
+    call gridpoints2() !for radial scan
+    call intracule("dm1hf.dat",.false.) !compute intracule of |1rdm_hf|^2
+    !compute c1hole
+    call c1hole(90,1.d0)    !compute approximate c1 hole I(s,|1rdm_hf|^2)-\int_{r=0,inf}BRHOLE(r,s)*rho(r)dr
+    call angular_int()
+    call radial_angular()
+
+    write(*,*) "=== Approximate C1 hole calculation completed ==="
+end if
+
+if (option.eq."intra") then !compute the intracule
+    write(*,*) "=== Calculating intracule ==="
+
+    call gridpoints()
+    call gridpoints2()
+    call intracule(dm2p,.true.)
+    call angular_int()
+    call radial_angular()
+
+    write(*,*) "=== Intracule calculation completed successfully ==="
+end if
+
+write(*,*) "=== Program execution completed ==="
 
 end program wavefunction
 
@@ -131,121 +309,387 @@ end program wavefunction
 !   In this subroutine we read an input file where we specify what type of
 !   calculations we want to do
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine readinput() 
+subroutine readinput()
 use inputdat
 use cubeinfo
 use intracube
 use located
+use cube_module  ! For grid parameters
 implicit none
-character*80 :: name
-integer :: i
+character*80 :: name, line, keyword
+integer :: i, j, ndims, io_stat
+double precision :: max_val
+logical :: active_dim
+character*40 :: property_name, property_type
 
-call getarg(1,name)  !gets the name of the input file (writen in the prompt)
-name=trim(name)      !remove the blank spaces of the string 'name'
-open(unit=3,file=name,status='OLD') 
+! Get input file name from command line
+call getarg(1, name)
+name = trim(name)
+open(unit=3, file=name, status='OLD')
 
-nameinp=name
-!set up logical variables as false
-readwfx=.false. 
-readlog=.false.
-primcube=.false.
-aocube=.false.
-MOcube=.false.
-denscube=.false.
-gradient=.false.
-laplacian=.false.
-dmn=.false.
-id=.false.
-ontop_hf=.false.
+nameinp = name
 
-call locate(3,"$wfxfile") 
-read(3,*) wfxfilename 
-   if (wfxfilename.ne.'no') then
-      readwfx=.true.
-   end if
+! Set default values
+readwfx = .false.
+readlog = .false.
+cube_flag = .false.
+primcube = .false.
+aocube = .false.
+MOcube = .false.
+denscube = .false.
+gradient = .false.
+laplacian = .false.
+dmn = .false.
+id = .false.
+ontop_hf = .false.
 
-call locate(3,"$logfile")
-read(3,*) logfilename
+! Basic file inputs (keeping at the beginning for compatibility)
+call locate(3, "$wfxfile")
+read(3, *) wfxfilename
+if (wfxfilename.ne.'no') then
+    readwfx = .true.
+endif
+
+call locate(3, "$logfile")
+read(3, *) logfilename
 if (logfilename.ne.'no') then
-      readlog=.true.
-end if 
+    readlog = .true.
+endif
 
+! Process either legacy options or new property-based format
 rewind 3
+if (scan_to_location(3, "$Grid")) then
+    ! New property-based input format
+    option = "property"  ! Set option to property mode
 
-call locate(3,"$cubefile")
-read(3,*) cube
-if (cube) then 
-   read(3,*) (center(i), i=1,3) !cube centered in (x,y,z)
-   read(3,*) (step(i), i=1,3) !distance between points in the axis
-   read(3,*) (np(i), i=1,3) !number of points for each axis  
-   rewind 3
-   call locate(3,"$primitive")
-   read(3,*) nameprim
-   if (nameprim.ne.'no') primcube=.true.
-   !read(3,*) npr !number of primitive we want to print
-   rewind 3
-   if (readlog) then    
-      call locate(3,"$AO")
-      read(3,*) nameao
-      if (nameao.ne.'no') aocube=.true. 
-      read(3,*) cao  !number of ao we want to print
-   end if 
-   rewind 3
-   call locate(3,"$MO")
-   read(3,*) namemo
-   if (namemo.ne.'no') MOcube=.true.    
-   read(3,*) mo  !number of MO we want to print
-   rewind 3
-   call locate(3,"$density")
-   read(3,*) namedens 
-   if (namedens.ne.'no') denscube=.true.       
-   rewind 3
-   call locate(3,"$gradient")
-   read(3,*) namegrad
-   if (namegrad.ne.'no') gradient=.true.
-   rewind 3
-   call locate(3,"$laplacian")
-   read(3,*) namelap
-   if (namelap.ne.'no') laplacian=.true.
-   rewind 3   
-end if
-rewind 3
-call locate(3,"$Coulomb Hole") !compute c1hole with HF
-read(3,*) option
-read(3,*) wfxhfname
-if (wfxhfname.ne."no") dmn=.true.
-rewind 3
-call locate(3,"$On top")
-read(3,*) dm2name
-if (dm2name.eq."no") ontop_hf=.true.
+    ! Read grid dimensions
+    read(3, *) ndims
 
-rewind 3
-call locate(3,"$scanning_props")
-read(3,*) n_atoms_scan
-allocate(atom_indices(n_atoms_scan))
-read(3,*) (atom_indices(i), i=1,n_atoms_scan)
+    ! Initialize grid parameters based on dimensionality
+    if (ndims == 3) then
+        call allocate_grid_parameters(grid_3d, 3)
 
-! Read number of directions
-read(3,*) n_directions
-allocate(scan_directions(n_directions))
-read(3,*) (scan_directions(i), i=1,n_directions)
+        ! Read each dimension
+        do i = 1, 3
+            read(3, *) max_val, step_size
+            grid_3d%max_vals(i) = max_val
+            grid_3d%step_sizes(i) = step_size
+            grid_3d%active_dims(i) = .true.
+        enddo
 
-! Read distance parameters and convert to atomic units
-read(3,*) end_distance
-end_distance = end_distance/0.529177249d0  ! Convert Å to au
+        ! Check for any inactive dimensions (specified by "no")
+        rewind 3
+        call locate(3, "$Grid")
+        read(3, *) ndims  ! Skip dimensions line
+        do i = 1, 3
+            read(3, *, iostat=io_stat) max_val, step_size, keyword
+            if (io_stat == 0) then
+                if (trim(keyword) == "no") then
+                    grid_3d%active_dims(i) = .false.
+                endif
+            endif
+        enddo
 
-read(3,*) step_size  
-step_size = step_size/0.529177249d0  ! Convert Å to au
+        ! Create 6D grid from 3D grid for pair properties if needed
+        call allocate_grid_parameters(grid_6d, 6)
+        do i = 1, 3
+            grid_6d%max_vals(i) = grid_3d%max_vals(i)
+            grid_6d%max_vals(i+3) = grid_3d%max_vals(i)
 
-call locate(3,"$ID")
-read(3,*) id
+            grid_6d%step_sizes(i) = grid_3d%step_sizes(i)
+            grid_6d%step_sizes(i+3) = grid_3d%step_sizes(i)
+
+            grid_6d%active_dims(i) = grid_3d%active_dims(i)
+            grid_6d%active_dims(i+3) = grid_3d%active_dims(i)
+        enddo
+    else if (ndims == 6) then
+        ! Direct 6D grid specification
+        call allocate_grid_parameters(grid_6d, 6)
+
+        ! Read each dimension
+        do i = 1, 6
+            read(3, *) max_val, step_size
+            grid_6d%max_vals(i) = max_val
+            grid_6d%step_sizes(i) = step_size
+            grid_6d%active_dims(i) = .true.
+        enddo
+
+        ! Check for any inactive dimensions
+        rewind 3
+        call locate(3, "$Grid")
+        read(3, *) ndims  ! Skip dimensions line
+        do i = 1, 6
+            read(3, *, iostat=io_stat) max_val, step_size, keyword
+            if (io_stat == 0) then
+                if (trim(keyword) == "no") then
+                    grid_6d%active_dims(i) = .false.
+                endif
+            endif
+        enddo
+
+        ! Also create 3D grid for single properties
+        call allocate_grid_parameters(grid_3d, 3)
+        do i = 1, 3
+            grid_3d%max_vals(i) = grid_6d%max_vals(i)
+            grid_3d%step_sizes(i) = grid_6d%step_sizes(i)
+            grid_3d%active_dims(i) = grid_6d%active_dims(i)
+        enddo
+    else if (ndims == 1) then
+        ! 1D grid for line scans
+        call allocate_grid_parameters(grid_1d, 1)
+
+        read(3, *) max_val, step_size
+        grid_1d%max_vals(1) = max_val
+        grid_1d%step_sizes(1) = step_size
+        grid_1d%active_dims(1) = .true.
+    else
+        write(*,*) "Error: Grid dimensions must be 1, 3, or 6"
+        return
+    endif
+
+    ! Read property specifications
+    if (scan_to_location(3, "$Properties")) then
+        ! Allocate property flags with reasonable defaults
+        max_properties = 10  ! Default maximum
+        max_pair_properties = 5  ! Default maximum
+
+        allocate(density_properties_enabled(5))  ! total, alpha, beta, spin, hf
+        allocate(pair_density_properties_enabled(3))  ! full, c1, c2
+        density_properties_enabled = .false.
+        pair_density_properties_enabled = .false.
+        indicator_dynamic_enabled = .false.
+
+        ! Process each property line
+        do
+            read(3, '(A)', iostat=io_stat) line
+            if (io_stat /= 0 .or. line(1:1) == '$') exit
+
+            ! Remove leading/trailing spaces
+            line = adjustl(trim(line))
+            if (len_trim(line) == 0) cycle  ! Skip empty lines
+
+            ! Convert to lowercase for easier parsing
+            call to_lowercase(line)
+
+            ! Check for single properties
+            if (index(line, "density") > 0) then
+                ! Enable total density by default
+                density_properties_enabled(1) = .true.
+                density_output_type = "total"
+
+                ! Check for spin keyword
+                if (index(line, "spin") > 0) then
+                    ! Enable all three density types for spin
+                    density_properties_enabled(1:3) = .true.  ! total, alpha, beta
+                    density_properties_enabled(4) = .true.    ! spin density
+                    density_output_type = "all"
+                else if (index(line, "alpha") > 0) then
+                    density_properties_enabled(2) = .true.
+                else if (index(line, "beta") > 0) then
+                    density_properties_enabled(3) = .true.
+                else if (index(line, "hf") > 0) then
+                    density_properties_enabled(5) = .true.
+                end if
+            end if
+
+            ! Check for on-top pair density
+            if (index(line, "on top") > 0 .or. index(line, "ontop") > 0) then
+                ontop_cube_output = .true.
+                option = "ontop"  ! This helps maintain legacy functionality
+            end if
+
+            ! Check for indicator dynamic
+            if (index(line, "indicator") > 0) then
+                indicator_dynamic_enabled = .true.
+            end if
+
+            ! Check for pair density
+            if (index(line, "pair density") > 0 .or. index(line, "pair_density") > 0) then
+                ! Enable full pair density by default
+                pair_density_properties_enabled(1) = .true.
+                pair_density_output_type = "full"
+
+                ! Check for components keyword
+                if (index(line, "component") > 0) then
+                    ! Enable all pair density components
+                    pair_density_properties_enabled = .true.  ! full, c1, c2
+                    pair_density_output_type = "all"
+                else if (index(line, "c1") > 0) then
+                    pair_density_properties_enabled(2) = .true.
+                else if (index(line, "c2") > 0) then
+                    pair_density_properties_enabled(3) = .true.
+                end if
+            end if
+        end do
+    end if
+
+    ! Handle remaining input sections for other functionality
+    rewind 3
+    call locate(3, "$On top")
+    read(3, *) dm2name
+    if (dm2name.eq."no") ontop_hf = .true.
+
+    ! Only read these if needed (scanning properties)
+    if (scan_to_location(3, "$scanning_props")) then
+        read(3, *) n_atoms_scan
+        allocate(atom_indices(n_atoms_scan))
+        read(3, *) (atom_indices(i), i=1, n_atoms_scan)
+
+        ! Read number of directions
+        read(3, *) n_directions
+        allocate(scan_directions(n_directions))
+        read(3, *) (scan_directions(i), i=1, n_directions)
+
+        ! Read distance parameters and convert to atomic units
+        read(3, *) end_distance
+        end_distance = end_distance/0.529177249d0  ! Convert Å to au
+
+        read(3, *) step_size
+        step_size = step_size/0.529177249d0  ! Convert Å to au
+    endif
+else
+    ! Legacy input format
+    ! Process cube file parameters
+    call locate(3, "$cubefile")
+    read(3, *) cube_flag
+    if (cube_flag) then
+        read(3, *) (center(i), i=1,3)
+        read(3, *) (step(i), i=1,3)
+        read(3, *) (np(i), i=1,3)
+        rewind 3
+
+        call locate(3, "$primitive")
+        read(3, *) nameprim
+        if (nameprim.ne.'no') primcube = .true.
+        rewind 3
+
+        if (readlog) then
+            call locate(3, "$AO")
+            read(3, *) nameao
+            if (nameao.ne.'no') aocube = .true.
+            read(3, *) cao
+        endif
+
+        rewind 3
+        call locate(3, "$MO")
+        read(3, *) namemo
+        if (namemo.ne.'no') MOcube = .true.
+        read(3, *) mo
+
+        rewind 3
+        call locate(3, "$density")
+        read(3, *) namedens
+        if (namedens.ne.'no') denscube = .true.
+
+        rewind 3
+        call locate(3, "$gradient")
+        read(3, *) namegrad
+        if (namegrad.ne.'no') gradient = .true.
+
+        rewind 3
+        call locate(3, "$laplacian")
+        read(3, *) namelap
+        if (namelap.ne.'no') laplacian = .true.
+
+        rewind 3
+    endif
+
+    ! Legacy Coulomb Hole parameters
+    rewind 3
+    call locate(3, "$Coulomb Hole")
+    read(3, *) option
+    read(3, *) wfxhfname
+    if (wfxhfname.ne."no") dmn = .true.
+
+    ! Other legacy parameters
+    call locate(3, "$ID")
+    read(3, *) id
+endif
+
 close(3)
-end subroutine readinput 
+
+contains
+    ! Helper function to scan to a specific section
+    function scan_to_location(unit, section) result(found)
+        integer, intent(in) :: unit
+        character(*), intent(in) :: section
+        logical :: found
+
+        character(len=80) :: line
+
+        rewind(unit)
+        found = .false.
+        do
+            read(unit, '(A)', end=110, err=110) line
+            if (index(line, trim(section)) > 0) then
+                found = .true.
+                exit
+            endif
+        enddo
+
+        110 continue
+        if (.not. found) rewind(unit)
+    end function scan_to_location
+
+    ! Helper function to check if one string contains another (case-insensitive)
+    function scan_words(line, word) result(found)
+        character(*), intent(in) :: line, word
+        logical :: found
+        character(len=80) :: line_lower, word_lower
+        integer :: i
+
+        ! Convert to lowercase for case-insensitive comparison
+        line_lower = line
+        word_lower = word
+        do i = 1, len_trim(line_lower)
+            if (line_lower(i:i) >= 'A' .and. line_lower(i:i) <= 'Z') then
+                line_lower(i:i) = achar(iachar(line_lower(i:i)) + 32)
+            endif
+        enddo
+
+        do i = 1, len_trim(word_lower)
+            if (word_lower(i:i) >= 'A' .and. word_lower(i:i) <= 'Z') then
+                word_lower(i:i) = achar(iachar(word_lower(i:i)) + 32)
+            endif
+        enddo
+
+        found = index(trim(line_lower), trim(word_lower)) > 0
+    end function scan_words
+
+    ! Helper function to allocate grid parameters
+    subroutine allocate_grid_parameters(grid, dims)
+        type(grid_parameters), intent(out) :: grid
+        integer, intent(in) :: dims
+
+        grid%ndims = dims
+        allocate(grid%max_vals(dims))
+        allocate(grid%step_sizes(dims))
+        allocate(grid%active_dims(dims))
+
+        grid%max_vals = 0.0d0
+        grid%step_sizes = 0.0d0
+        grid%active_dims = .false.
+    end subroutine allocate_grid_parameters
+
+    ! Helper function to convert string to lowercase
+    subroutine to_lowercase(str)
+        character(*), intent(inout) :: str
+        integer :: i
+
+        do i = 1, len_trim(str)
+            if (str(i:i) >= 'A' .and. str(i:i) <= 'Z') then
+                str(i:i) = achar(iachar(str(i:i)) + 32)
+            end if
+        end do
+    end subroutine to_lowercase
+end subroutine readinput
+
+
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine readintra(nameinp,dm2p,dm2phf,dm2phfl)
-use thresholds 
+use thresholds
 use quadinfo1
 use quadinfo2
 use intracube
@@ -264,11 +708,11 @@ logical :: beckw
    if (dm2phf.eq.'no') dm2phf="dm2hf.dat"
    if (dm2phfl.eq.'no') dm2phfl="dm2phf.dat"
    call locate(3,'$Threshold') !threshold for integral screenings
-   read(3,*) thresh  
-   rewind(3)                 
+   read(3,*) thresh
+   rewind(3)
    call locate(3,'$radial_integral')
-   read(3,*) radial_integral            
-   if (radial_integral) then   !read info to perform radial integral   
+   read(3,*) radial_integral
+   if (radial_integral) then   !read info to perform radial integral
       call centercalc() !calculate integration centers
       allocate(nradc(nquad))
       allocate(nangc(nquad))
@@ -280,7 +724,7 @@ logical :: beckw
                           !if 0 the integral is computed from 0 to infty
       read(3,*) sfalpha !HEre is a fixed number but I will calculate it
       !calculate sfalpha for each centre
-      rewind(3)           
+      rewind(3)
       call locate(3,'$Gauss-Lebedev')
       read(3,*) nangc(1) !fix it to 590
       rewind(3)
@@ -302,7 +746,7 @@ logical :: beckw
       end do
    end if
    rewind(3) !end radial plot
-          
+
    call locate (3,'$Vectorial_plot')
    read(3,*) cubeint
    if (cubeint) then
@@ -310,8 +754,8 @@ logical :: beckw
       read(3,*) (center_i(i), i=1,3) !cube centered in (x,y,z)
       read(3,*) (step_i(i), i=1,3) !distance between points in the axis
       read(3,*) (np3(i), i=1,3) !number of points for each axis
-   end if  
-   
+   end if
+
    close(3)
 end subroutine readintra
 
@@ -330,24 +774,24 @@ logical :: equal
 nqmax=(natoms*(natoms-1))+1
 allocate(c1(3,nqmax))
 allocate(nelec_c1(nqmax))
-c1(:,1)=0.d0 !first center always at zero    
+c1(:,1)=0.d0 !first center always at zero
 sm=1
 do j=1,natoms-1
    do k=j+1,natoms
       if (j.ne.k) then
-         !if ((an(j).gt.1).and.(an(k).gt.1)) then !only for non-hydrogen atoms      
-         sm=sm+1      
+         !if ((an(j).gt.1).and.(an(k).gt.1)) then !only for non-hydrogen atoms
+         sm=sm+1
          c1(:,sm)=cartes(j,:)-cartes(k,:)
          nelec_c1(sm)=(an(i)-chrg(i))*(an(j)-chrg(j))
          z=abs(c1(3,sm))
          if (z.lt.trs) c1(3,sm)=0.d0 !to exploit symmetry
-         smp=sm  
-         sm=sm+1 !count centres  
+         smp=sm
+         sm=sm+1 !count centres
          c1(3,sm)=-c1(3,smp)
          c1(1,sm)=-c1(1,smp) !I(x,y,z)=I(-x,-y,-z)
-         c1(2,sm)=-c1(2,smp)  
+         c1(2,sm)=-c1(2,smp)
          nelec_c1(sm)=nelec_c1(smp)
-      end if  
+      end if
    end do
 end do
 !check if there are equal centers
@@ -363,7 +807,7 @@ do i=2,nqmax-1
          if (equal) then             !center j is equal to center i
             sm=sm+1
             c1(:,j)=0.d0                     !set center j to zero
-         end if   
+         end if
       end if
    end do
 end do
@@ -381,9 +825,9 @@ do i=2,nqmax
       nelec_cent(sm1)=nelec_c1(i)
    end if
 end do
- 
-write(*,*) "INTEGRATION CENTRES:", nquad 
-end subroutine centercalc          
+
+write(*,*) "INTEGRATION CENTRES:", nquad
+end subroutine centercalc
 
 subroutine autocalc()
 use geninfo
@@ -404,6 +848,7 @@ end do
 
 
 end subroutine autocalc
+
 
 
 
