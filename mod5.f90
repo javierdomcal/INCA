@@ -49,6 +49,7 @@ implicit none
  integer :: n_atoms_scan, n_directions
  real*8 :: end_distance, step_size
  logical :: ontop_cube_output
+ logical :: Grid_2
 
  ! Add to the existing module inputdat
 logical, allocatable :: density_properties_enabled(:)  ! Array for enabled density properties
@@ -58,20 +59,16 @@ logical :: indicator_dynamic_enabled  ! Flag for indicator dynamic
 character(len=10) :: density_output_type  ! "total", "alpha", "beta", "spin", "hf", "all"
 character(len=10) :: pair_density_output_type  ! "full", "c1", "c2", "all"
 
-    type :: grid_parameters
-        integer :: ndims
-        double precision, allocatable, dimension(:) :: max_vals
-        double precision, allocatable, dimension(:) :: step_sizes
-        logical, allocatable, dimension(:) :: active_dims
-    end type grid_parameters
+    type :: grid
+        double precision, dimension(3) :: max_vals
+        double precision, dimension(3) :: step_sizes
+    end type grid
 
-type(grid_parameters) :: grid_3d  ! 3D grid parameters
-type(grid_parameters) :: grid_6d  ! 6D grid parameters
+type(grid) :: grid, grid_2  ! 3D grid parameters
 
 integer :: max_properties  ! Maximum number of single properties
 integer :: max_pair_properties  ! Maximum number of pair properties
 
-character(len=10) :: grid_3d_tag  ! Should be "$Grid3D"
 end module inputdat
 
 !----------------------------------------------------------------------------------------------------

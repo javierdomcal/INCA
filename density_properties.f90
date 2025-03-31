@@ -131,12 +131,12 @@ contains
    end function hf_density_adapter
 
    ! Entry point for density calculations
-   subroutine density_calculation(output_type, grid_params)
+   subroutine density_calculation(output_type, grid)
       use cube_module        ! For cube file output
       use properties  ! For property access
 
       character(len=10), intent(in) :: output_type  ! "total", "alpha", "beta", "spin", "hf", "all"
-      type(grid_parameters), intent(in) :: grid_params
+      type(grid), intent(in) :: grid
 
       ! Initialize density module
       call initialize_density_properties()
@@ -166,31 +166,31 @@ contains
       if (is_property_enabled("Electron Density")) then
          write(*,*) "Generating electron density cube file..."
          call write_cube_file("density.cube", "Electron Density", &
-                             density_adapter, grid_params)
+                             density_adapter, grid)
       end if
 
       if (is_property_enabled("Alpha Density")) then
          write(*,*) "Generating alpha density cube file..."
          call write_cube_file("alpha_density.cube", "Alpha Electron Density", &
-                             alpha_density_adapter, grid_params)
+                             alpha_density_adapter, grid)
       end if
 
       if (is_property_enabled("Beta Density")) then
          write(*,*) "Generating beta density cube file..."
          call write_cube_file("beta_density.cube", "Beta Electron Density", &
-                             beta_density_adapter, grid_params)
+                             beta_density_adapter, grid)
       end if
 
       if (is_property_enabled("Spin Density")) then
          write(*,*) "Generating spin density cube file..."
          call write_cube_file("spin_density.cube", "Spin Density", &
-                             spin_density_adapter, grid_params)
+                             spin_density_adapter, grid)
       end if
 
       if (is_property_enabled("HF Density")) then
          write(*,*) "Generating Hartree-Fock density cube file..."
          call write_cube_file("hf_density.cube", "Hartree-Fock Density", &
-                             hf_density_adapter, grid_params)
+                             hf_density_adapter, grid)
       end if
    end subroutine density_calculation
 

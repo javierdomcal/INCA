@@ -77,4 +77,28 @@ contains
       value = calculate_indicator_at_point(x, y, z)
    end function indicator_at_point
 
+! Entry point for indicator calculations
+subroutine indicator_calculation(output_type, grid)
+    use cube_module        ! For cube file output
+    use properties         ! For property access
+
+    character(len=10), intent(in) :: output_type  ! "dynamic" or "all"
+    type(grid), intent(in) :: grid
+
+    ! Initialize indicators module
+    call initialize_indicators()
+
+    ! Enable properties based on output_type
+    if (output_type == "dynamic" .or. output_type == "all") then
+        call enable_property("Indicator Dynamic")
+    end if
+
+    ! Generate cube file for indicator dynamic
+    if (is_property_enabled("Indicator Dynamic")) then
+        write(*,*) "Generating indicator dynamic cube file..."
+        call write_cube_file("indicator_dynamic.cube", "Indicator Dynamic", &
+                            indicator_at_point, grid)
+    end if
+end subroutine indicator_calculation
+
 end module correlation_indicators

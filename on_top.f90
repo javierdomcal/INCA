@@ -219,4 +219,41 @@ contains
       cached_count = 0
    end subroutine
 
+   ! Entry point for on-top calculations with cube output
+subroutine ontop_calculation(dm2_file, output_type, grid)
+    use cube_module        ! For cube file output
+    use properties         ! For property access
+
+    character(len=40), intent(in) :: dm2_file
+    character(len=10), intent(in) :: output_type  ! "density" or "all"
+    type(grid), intent(in) :: grid
+
+    ! Process the DM2 file and set up calculations
+    call ontop(dm2_file)
+
+    ! Register the on-top property
+    call register_single_property("On-Top Density", &
+                                "Two-electron coincidence density", ontop_at_point)
+
+    ! Enable property based on output_type
+    if (output_type == "all") then
+        call enable_property("On-Top Density")
+    end if
+
+    ! Generate cube file for on-top density
+    if (is_property_enabled("On-Top Density")) then
+        write(*,*) "Generating on-top density cube file..."
+        call write_cube_file("ontop_density.cube", "On-Top Density", &
+                            ontop_at_point, grid)
+    end if
+end subroutine ontop_calculation
+
+! Adapter function for cube file generation
+function ontop_at_point(x, y, z) result(value)
+    double precision, intent(in) :: x, y, z
+    double precision :: value
+
+    value = calc_ontop_at_point(x, y, z)
+end function ontop_at_point
+
 end subroutine ontop

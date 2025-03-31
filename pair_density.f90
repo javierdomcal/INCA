@@ -248,13 +248,13 @@ contains
    end subroutine cleanup_pair_density
 
    ! Entry point for pair density calculations
-   subroutine pair_density_calculation(dm2_file, dm2hfname, dm2hflname, output_type, grid_params)
+   subroutine pair_density_calculation(dm2_file, dm2hfname, dm2hflname, output_type, grid, grid_2)
       use cube_module        ! For cube file output
       use properties  ! For property access
 
       character(len=40), intent(in) :: dm2_file, dm2hfname, dm2hflname
       character(len=10), intent(in) :: output_type  ! "full", "c1", "c2", "all"
-      type(grid_parameters), intent(in) :: grid_params
+      type(grid), intent(in) :: grid, grid_2
 
       ! Initialize pair density module
       call initialize_pair_density(dm2_file, dm2hfname, dm2hflname)
@@ -274,25 +274,80 @@ contains
 
       ! Generate cube files based on enabled properties
       if (is_property_enabled("Full Pair Density")) then
-         write(*,*) "Generating full pair density cube file..."
-         call write_cube2_file("full_pair_density.cube", "Full Pair Density", &
-                              full_pd_adapter, grid_params)
+         write(*,*) "Generating full pair density cube2 file..."
+         call write_cube_file_pair("full_pair_density.cube2", "Full Pair Density", &
+                              full_pd_adapter, grid, grid_2)
       end if
 
       if (is_property_enabled("C1 Pair Density")) then
-         write(*,*) "Generating C1 pair density cube file..."
-         call write_cube2_file("c1_pair_density.cube", "C1 Pair Density", &
-                              c1_pd_adapter, grid_params)
+         write(*,*) "Generating C1 pair density cube2 file..."
+         call write_cube_file_pair("c1_pair_density.cube2", "C1 Pair Density", &
+                              c1_pd_adapter, grid, grid_2)
       end if
 
       if (is_property_enabled("C2 Pair Density")) then
-         write(*,*) "Generating C2 pair density cube file..."
-         call write_cube2_file("c2_pair_density.cube", "C2 Pair Density", &
-                              c2_pd_adapter, grid_params)
+         write(*,*) "Generating C2 pair density cube2 file..."
+         call write_cube_file_pair("c2_pair_density.cube2", "C2 Pair Density", &
+                              c2_pd_adapter, grid, grid_2)
       end if
 
       ! Cleanup
       call cleanup_pair_density()
    end subroutine pair_density_calculation
+
+   subroutine pair_density_nucleus_calculation(dm2_file, dm2hfname, dm2hflname, output_type, grid)
+      use cube_module        ! For cube file output
+      use properties  ! For property access
+
+      character(len=40), intent(in) :: dm2_file, dm2hfname, dm2hflname
+      character(len=10), intent(in) :: output_type  ! "full", "c1", "c2", "all"
+      type(grid), intent(in) :: grid
+      type(grid) :: grid_2
+      integer ::i
+
+      do i = 1,3  !
+         grid_2%max_vals(i) = 0.0_dp
+         grid_2%step_sizes(i) = 0.0_dp
+      enddo
+
+      ! Initialize pair density module
+      call initialize_pair_density(dm2_file, dm2hfname, dm2hflname)
+
+      ! Enable properties based on output_type
+      if (output_type == "full" .or. output_type == "all") then
+         call enable_property("Full Pair Nucleus Density")
+      end if
+
+      if (output_type == "c1" .or. output_type == "all") then
+         call enable_property("C1 Pair Nucleus Density")
+      end if
+
+      if (output_type == "c2" .or. output_type == "all") then
+         call enable_property("C2 Pair Nucleus Density")
+      end if
+
+      ! Generate cube files based on enabled properties
+      if (is_property_enabled("Full Pair Nucleus Density")) then
+         write(*,*) "Generating full pair Nucleus Density cube file..."
+         call write_cube_file_pair("full_pair_density_nucleus.cube", "Full Pair Nucleus Density", &
+                              full_pd_adapter, grid, grid_2)
+      end if
+
+      if (is_property_enabled("C1 Pair Nucleus Density")) then
+         write(*,*) "Generating C1 pair Nucleus Density cube file..."
+         call write_cube_file_pair("c1_pair_density_nucleus.cube", "C1 Pair Nucleus Density", &
+                              c1_pd_adapter, grid, grid_2)
+      end if
+
+      if (is_property_enabled("C2 Pair Nucleus Density")) then
+         write(*,*) "Generating C2 pair Nucleus Density cube file..."
+         call write_cube_file_pair("c2_pair_density_nucleus.cube", "C2 Pair Nucleus Density", &
+                              c2_pd_adapter, grid, grid_2)
+      end if
+
+      ! Cleanup
+      call cleanup_pair_density()
+   end subroutine pair_density_nucleus_calculation
+
 
 end module pair_density_module
