@@ -78,12 +78,12 @@ contains
    end function indicator_at_point
 
 ! Entry point for indicator calculations
-subroutine indicator_calculation(output_type, grid)
+subroutine indicator_calculation(output_type)
     use cube_module        ! For cube file output
     use properties         ! For property access
 
     character(len=10), intent(in) :: output_type  ! "dynamic" or "all"
-    type(grid_type), intent(in) :: grid
+
 
     ! Initialize indicators module
     call initialize_indicators()
@@ -97,7 +97,7 @@ subroutine indicator_calculation(output_type, grid)
     if (is_property_enabled("Indicator Dynamic")) then
         write(*,*) "Generating indicator dynamic cube file..."
         call write_cube_file("indicator_dynamic.cube", "Indicator Dynamic", &
-                            indicator_at_point, grid)
+                            indicator_at_point)
     end if
 end subroutine indicator_calculation
 
