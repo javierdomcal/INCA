@@ -133,9 +133,8 @@ contains
    end function hf_density_adapter
 
    ! Entry point for density calculations
-   subroutine density_calculation(output_type, grid_param)
+   subroutine density_calculation(output_type)
       character(len=10), intent(in) :: output_type  ! "total", "alpha", "beta", "spin", "hf", "all"
-      type(grid_type), intent(in) :: grid_param  ! Renamed to avoid conflict
 
       ! Initialize density module
       call initialize_density_properties()
@@ -165,31 +164,31 @@ contains
       if (is_property_enabled("Electron Density")) then
          write(*,*) "Generating electron density cube file..."
          call write_cube_file("density.cube", "Electron Density", &
-                             density_adapter, grid_param)
+                             density_adapter)
       end if
 
       if (is_property_enabled("Alpha Density")) then
          write(*,*) "Generating alpha density cube file..."
          call write_cube_file("alpha_density.cube", "Alpha Electron Density", &
-                             alpha_density_adapter, grid_param)
+                             alpha_density_adapter)
       end if
 
       if (is_property_enabled("Beta Density")) then
          write(*,*) "Generating beta density cube file..."
          call write_cube_file("beta_density.cube", "Beta Electron Density", &
-                             beta_density_adapter, grid_param)
+                             beta_density_adapter)
       end if
 
       if (is_property_enabled("Spin Density")) then
          write(*,*) "Generating spin density cube file..."
          call write_cube_file("spin_density.cube", "Spin Density", &
-                             spin_density_adapter, grid_param)
+                             spin_density_adapter)
       end if
 
       if (is_property_enabled("HF Density")) then
          write(*,*) "Generating Hartree-Fock density cube file..."
          call write_cube_file("hf_density.cube", "Hartree-Fock Density", &
-                             hf_density_adapter, grid_param)
+                             hf_density_adapter)
       end if
    end subroutine density_calculation
 

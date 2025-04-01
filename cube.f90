@@ -10,7 +10,7 @@ module cube_module
 
 contains
 
-    subroutine write_cube_file(filename, property_name, property_function, grid)
+    subroutine write_cube_file(filename, property_name, property_function)
         character(*), intent(in) :: filename, property_name
         interface
             function property_function(x, y, z) result(value)
@@ -18,7 +18,7 @@ contains
                 double precision :: value
             end function property_function
         end interface
-        type(grid_type), intent(in) :: grid
+
 
         integer :: i, j, k, icount, iatom
         double precision :: x, y, z
@@ -85,7 +85,7 @@ contains
         close(unit_number)
     end subroutine write_cube_file
 
-    subroutine write_cube_file_pair(filename, property_name, pair_property_function, grid, grid_2)
+    subroutine write_cube_file_pair(filename, property_name, pair_property_function)
         character(*), intent(in) :: filename, property_name
         interface
             function pair_property_function(x1, y1, z1, x2, y2, z2) result(value)
@@ -93,7 +93,6 @@ contains
                 double precision :: value
             end function pair_property_function
         end interface
-        type(grid_type), intent(in) :: grid, grid_2
 
         integer :: i1, j1, k1, i2, j2, k2, icount, iatom
         double precision :: x1, y1, z1, x2, y2, z2

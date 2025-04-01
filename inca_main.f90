@@ -2,13 +2,15 @@ program wavefunction
 use inputdat
 use properties
 use cube_module
+use density_properties
+use ontop_module
+use correlation_indicators
+use pair_density_module
 use geninfo
 use wfxinfo
 use wfxinfo_hf
 implicit none
-integer :: i, num_properties
-character(len=40), allocatable :: requested_properties(:)
-character(len=80), allocatable :: property_arguments(:)
+integer :: i
 
 call readinput()
 
@@ -16,39 +18,43 @@ call readinput()
 if (readwfx) call filewfx(wfxfilename)
 if (readlog) call filelog(logfilename)
 
-! Initialize properties module
+! Initialize properties module with max_properties from inputdat
 call initialize_properties(max_properties)
+
+! Make property information available to the properties module
+call set_property_info(requested_properties, property_arguments, num_properties)
 
 ! Enable requested properties
 do i = 1, num_properties
-    call enable_property(requested_properties(i), property_arguments(i))
+    call enable_property(requested_properties(i))
 end do
 
 ! Perform calculations
 if (is_property_enabled("density")) then
-    call density_calculation(get_property_argument("density"), grid)
+    call density_calculation(get_property_argument("density"))
 end if
 
 if (is_property_enabled("on_top")) then
-    call ontop_calculation(dm2_file, get_property_argument("on_top"), grid)
+    call ontop_calculation(dm2_file, get_property_argument("on_top"))
 end if
 
 if (is_property_enabled("indicator")) then
-    call indicator_calculation(get_property_argument("indicator"), grid)
+    call indicator_calculation(get_property_argument("indicator"))
 end if
 
 if (is_property_enabled("pair_density")) then
     call pair_density_calculation(dm2_file, dm2hf_file, dm2hfl_file, &
-                                  get_property_argument("pair_density"), grid, grid_2)
+                                  get_property_argument("pair_density"))
 end if
 
 if (is_property_enabled("pair_density_nucleus")) then
     call pair_density_nucleus_calculation(dm2_file, dm2hf_file, dm2hfl_file, &
-                                          get_property_argument("pair_density_nucleus"), grid)
+                                         get_property_argument("pair_density_nucleus"))
 end if
 
-deallocate(requested_properties)
-deallocate(property_arguments)
+! Clean up memory
+if (allocated(requested_properties)) deallocate(requested_properties)
+if (allocated(property_arguments)) deallocate(property_arguments)
 
 end program wavefunction
 
@@ -60,8 +66,6 @@ use located
 implicit none
 character*80 :: name, line
 integer :: i, io
-type(grid_type) ::grid
-type(grid_type) :: grid_2
 
 ! Get input file name from command line
 call getarg(1, name)
@@ -122,7 +126,6 @@ if (dm2hfl_file == 'no') dm2hfl_file = "dm2hfl.dat"
 
 close(3)
 
-
 contains
     ! Helper function to scan to a specific section
     function scan_to_location(unit, section) result(found)
@@ -171,8 +174,6 @@ contains
         found = index(trim(line_lower), trim(word_lower)) > 0
     end function scan_words
 
-
-
     ! Helper function to convert string to lowercase
     subroutine to_lowercase(str)
         character(*), intent(inout) :: str
@@ -185,9 +186,6 @@ contains
         end do
     end subroutine to_lowercase
 end subroutine readinput
-
-
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine readintra(nameinp,dm2p,dm2phf,dm2phfl)
@@ -278,6 +276,7 @@ allocate(c1(3,nqmax))
 allocate(nelec_c1(nqmax))
 c1(:,1)=0.d0 !first center always at zero
 sm=1
+sm1=0 ! Initialize sm1 to avoid undefined variable
 do j=1,natoms-1
    do k=j+1,natoms
       if (j.ne.k) then
@@ -344,15 +343,4 @@ do i=1,nquad
    factor=nelec_cent(i)/maxval(nelec_cent)
    nradc(i)=nrad*factor
 end do
-
-
-
-
-
 end subroutine autocalc
-
-
-
-
-
-

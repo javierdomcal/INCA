@@ -53,33 +53,46 @@ implicit none
  character*40 :: dm2name
 
  character*40 :: dm2_file
-character*40 :: dm2hf_file
-character*40 :: dm2hfl_file
-integer :: num_properties
-    ! Add scanning variables
+ character*40 :: dm2hf_file
+ character*40 :: dm2hfl_file
+
+ ! Property system variables
+ integer :: num_properties = 0
+ integer :: max_properties = 20
+ character(len=40), allocatable :: requested_properties(:)
+ character(len=80), allocatable :: property_arguments(:)
+
+ ! Scanning variables
  integer, allocatable :: atom_indices(:)
- character*1, allocatable :: scan_directions(:)
- integer :: n_atoms_scan, n_directions
- real*8 :: end_distance, step_size
- logical :: ontop_cube_output
- logical :: Grid_2_flag
+ character(len=1), allocatable :: scan_directions(:)
+ integer :: n_atoms_scan = 0
+ integer :: n_directions = 0
+ real*8 :: end_distance = 0.0d0
+ real*8 :: step_size = 0.0d0
+ logical :: ontop_cube_output = .false.
+ logical :: Grid_2_flag = .false.
 
- ! Add to the existing module inputdat
-logical, allocatable :: density_properties_enabled(:)  ! Array for enabled density properties
-logical, allocatable :: pair_density_properties_enabled(:)  ! Array for enabled pair density properties
-logical :: indicator_dynamic_enabled  ! Flag for indicator dynamic
+ ! Density properties flags
+ logical, allocatable :: density_properties_enabled(:)  ! Array for enabled density properties
+ logical, allocatable :: pair_density_properties_enabled(:)  ! Array for enabled pair density properties
+ logical :: indicator_dynamic_enabled = .false.  ! Flag for indicator dynamic
 
-character(len=10) :: density_output_type  ! "total", "alpha", "beta", "spin", "hf", "all"
-character(len=10) :: pair_density_output_type  ! "full", "c1", "c2", "all"
+ ! Output type flags
+ character(len=10) :: density_output_type = "total"  ! "total", "alpha", "beta", "spin", "hf", "all"
+ character(len=10) :: pair_density_output_type = "full"  ! "full", "c1", "c2", "all"
 
-    type :: grid_type
-        double precision, dimension(3) :: max_vals
-        double precision, dimension(3) :: step_sizes
-    end type grid_type
+ ! Grid definition
+ type :: grid_type
+     double precision, dimension(3) :: max_vals = 0.0d0
+     double precision, dimension(3) :: step_sizes = 0.0d0
+ end type grid_type
 
+ ! Grid instances
+ type(grid_type) :: grid
+ type(grid_type) :: grid_2
 
-integer :: max_properties  ! Maximum number of single properties
-integer :: max_pair_properties  ! Maximum number of pair properties
+ ! Maximum property settings
+ integer :: max_pair_properties = 10
 
 end module inputdat
 

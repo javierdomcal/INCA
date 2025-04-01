@@ -2,6 +2,15 @@ module properties
     use, intrinsic :: iso_fortran_env, only: dp => real64
     implicit none
 
+    ! Maximum number of properties that can be registered (renamed to avoid conflict)
+    integer, parameter :: PROP_MAX_SINGLE = 20
+    integer, parameter :: PROP_MAX_PAIR = 10
+
+    ! Arrays to store property data (renamed to avoid conflict)
+    character(len=80), allocatable :: prop_args(:)
+    character(len=40), allocatable :: prop_names(:)
+    integer :: prop_count = 0
+
     ! Property descriptor type
     type :: property_descriptor
         character(len=40) :: name
@@ -10,7 +19,7 @@ module properties
         logical :: enabled = .false.
     end type
 
-    ! Single property type (was scalar)
+    ! Single property type
     type :: single_property
         type(property_descriptor) :: descriptor
         procedure(single_property_func), pointer, nopass :: calculate => null()
@@ -47,16 +56,44 @@ module properties
 
 contains
 
+    ! Set property information from main program
+    subroutine set_property_info(names, args, count)
+        character(len=40), intent(in) :: names(:)
+        character(len=80), intent(in) :: args(:)
+        integer, intent(in) :: count
+
+        ! Store the count
+        prop_count = count
+
+        ! Allocate and copy to module-level variables
+        if (allocated(prop_names)) deallocate(prop_names)
+        if (allocated(prop_args)) deallocate(prop_args)
+
+        allocate(prop_names(count))
+        allocate(prop_args(count))
+
+        prop_names(1:count) = names(1:count)
+        prop_args(1:count) = args(1:count)
+    end subroutine set_property_info
+
     ! Initialize properties
-    subroutine initialize_properties(max_single, max_pair)
-        integer, intent(in) :: max_single, max_pair
+    subroutine initialize_properties(max_single)
+        integer, intent(in), optional :: max_single
+        integer :: max_to_use
+
+        ! Use provided value or default
+        if (present(max_single)) then
+            max_to_use = max_single
+        else
+            max_to_use = PROP_MAX_SINGLE
+        endif
 
         ! Allocate property arrays based on input parameters
         if (allocated(single_properties)) deallocate(single_properties)
         if (allocated(pair_properties)) deallocate(pair_properties)
 
-        allocate(single_properties(max_single))
-        allocate(pair_properties(max_pair))
+        allocate(single_properties(max_to_use))
+        allocate(pair_properties(PROP_MAX_PAIR))
 
         ! Reset property counters
         num_single_properties = 0
@@ -122,6 +159,27 @@ contains
 
         write(*,*) "Warning: Property not found for enabling: ", trim(name)
     end subroutine
+
+    ! Get property argument by name
+    function get_property_argument(name) result(arg)
+        character(len=*), intent(in) :: name
+        character(len=80) :: arg
+        integer :: i
+
+        arg = ""
+
+        ! Search for the property in the prop_names array
+        if (allocated(prop_names)) then
+            do i = 1, prop_count
+                if (trim(prop_names(i)) == trim(name)) then
+                    if (allocated(prop_args) .and. i <= size(prop_args)) then
+                        arg = prop_args(i)
+                    end if
+                    return
+                end if
+            end do
+        end if
+    end function
 
     ! Get single property by name
     function get_single_property_by_name(name) result(prop_index)
