@@ -60,6 +60,8 @@ use located
 implicit none
 character*80 :: name, line
 integer :: i, io
+type(grid_type) ::grid
+type(grid_type) :: grid_2
 
 ! Get input file name from command line
 call getarg(1, name)

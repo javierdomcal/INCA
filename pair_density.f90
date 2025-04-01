@@ -7,7 +7,9 @@ module pair_density_module
    use wfxinfo
    use geninfo
    use wfxinfo_hf
-   use properties, only: register_pair_property, pair_property_func
+   use properties, only: register_pair_property, pair_property_func, enable_property, is_property_enabled
+   use inputdat, only: grid_type  ! Explicitly import grid_type but not variables
+   use cube_module, only: write_cube_file_pair  ! Import the necessary function
    implicit none
 
    ! Module variables for normalization
@@ -15,7 +17,7 @@ module pair_density_module
    logical, private :: initialized = .false.
 
    ! DM2 file names and caching variables
-   character(len=40), private :: dm2_file, dm2hf_file, dm2hfl_file
+   character(len=40), private :: dm2_file_data, dm2hf_file_data, dm2hfl_file_data
 
    ! Caching variables for DM2 elements
    integer, private :: cached_count = 0
@@ -28,8 +30,8 @@ module pair_density_module
 contains
 
    ! Initialize the module
-   subroutine initialize_pair_density(dm2_file, dm2hfname, dm2hflname)
-      character(len=40), intent(in) :: dm2_file, dm2hfname, dm2hflname
+   subroutine initialize_pair_density(dm2_file_in, dm2hfname, dm2hflname)
+      character(len=40), intent(in) :: dm2_file_in, dm2hfname, dm2hflname
       integer :: i
       procedure(pair_property_func), pointer :: full_pd_func => null()
       procedure(pair_property_func), pointer :: c1_pd_func => null()
@@ -38,8 +40,9 @@ contains
       if (initialized) return
 
       ! Store file names
-      dm2hf_file = dm2hfname
-      dm2hfl_file = dm2hflname
+      dm2_file_data = dm2_file_in
+      dm2hf_file_data = dm2hfname
+      dm2hfl_file_data = dm2hflname
 
       ! Calculate normalization of primitives
       allocate(norm_prim(nprim))
@@ -117,7 +120,7 @@ contains
       real(dp) :: value
 
       ! Cache DM2 elements if not already done
-      call cache_dm2_file(dm2_file)
+      call cache_dm2_file(dm2_file_data)
 
       ! Calculate pair density
       value = compute_pair_density_cached(r1(1), r1(2), r1(3), r2(1), r2(2), r2(3))
@@ -130,11 +133,11 @@ contains
       real(dp) :: pd_hfl, pd_hf
 
       ! First get HFL pair density
-      call cache_dm2_file(dm2hfl_file)
+      call cache_dm2_file(dm2hfl_file_data)
       pd_hfl = compute_pair_density_cached(r1(1), r1(2), r1(3), r2(1), r2(2), r2(3))
 
       ! Then get HF pair density
-      call cache_dm2_file(dm2hf_file)
+      call cache_dm2_file(dm2hf_file_data)
       pd_hf = compute_pair_density_cached(r1(1), r1(2), r1(3), r2(1), r2(2), r2(3))
 
       ! C1 = HFL - HF
@@ -148,11 +151,11 @@ contains
       real(dp) :: pd_full, pd_hfl
 
       ! First get full pair density
-      call cache_dm2_file(dm2_file)
+      call cache_dm2_file(dm2_file_data)
       pd_full = compute_pair_density_cached(r1(1), r1(2), r1(3), r2(1), r2(2), r2(3))
 
       ! Then get HFL pair density
-      call cache_dm2_file(dm2hfl_file)
+      call cache_dm2_file(dm2hfl_file_data)
       pd_hfl = compute_pair_density_cached(r1(1), r1(2), r1(3), r2(1), r2(2), r2(3))
 
       ! C2 = Full - HFL
@@ -248,16 +251,16 @@ contains
    end subroutine cleanup_pair_density
 
    ! Entry point for pair density calculations
-   subroutine pair_density_calculation(dm2_file, dm2hfname, dm2hflname, output_type, grid, grid_2)
+   subroutine pair_density_calculation(dm2_file_in, dm2hfname, dm2hflname, output_type, grid1, grid2)
       use cube_module        ! For cube file output
-      use properties  ! For property access
 
-      character(len=40), intent(in) :: dm2_file, dm2hfname, dm2hflname
+      ! Renamed input parameters to avoid conflicts
+      character(len=40), intent(in) :: dm2_file_in, dm2hfname, dm2hflname
       character(len=10), intent(in) :: output_type  ! "full", "c1", "c2", "all"
-      type(grid_type), intent(in) :: grid, grid_2
+      type(grid_type), intent(in) :: grid1, grid2
 
       ! Initialize pair density module
-      call initialize_pair_density(dm2_file, dm2hfname, dm2hflname)
+      call initialize_pair_density(dm2_file_in, dm2hfname, dm2hflname)
 
       ! Enable properties based on output_type
       if (output_type == "full" .or. output_type == "all") then
@@ -276,42 +279,42 @@ contains
       if (is_property_enabled("Full Pair Density")) then
          write(*,*) "Generating full pair density cube2 file..."
          call write_cube_file_pair("full_pair_density.cube2", "Full Pair Density", &
-                              full_pd_adapter, grid, grid_2)
+                              full_pd_adapter, grid1, grid2)
       end if
 
       if (is_property_enabled("C1 Pair Density")) then
          write(*,*) "Generating C1 pair density cube2 file..."
          call write_cube_file_pair("c1_pair_density.cube2", "C1 Pair Density", &
-                              c1_pd_adapter, grid, grid_2)
+                              c1_pd_adapter, grid1, grid2)
       end if
 
       if (is_property_enabled("C2 Pair Density")) then
          write(*,*) "Generating C2 pair density cube2 file..."
          call write_cube_file_pair("c2_pair_density.cube2", "C2 Pair Density", &
-                              c2_pd_adapter, grid, grid_2)
+                              c2_pd_adapter, grid1, grid2)
       end if
 
       ! Cleanup
       call cleanup_pair_density()
    end subroutine pair_density_calculation
 
-   subroutine pair_density_nucleus_calculation(dm2_file, dm2hfname, dm2hflname, output_type, grid)
+   subroutine pair_density_nucleus_calculation(dm2_file_in, dm2hfname, dm2hflname, output_type, grid1)
       use cube_module        ! For cube file output
-      use properties  ! For property access
 
-      character(len=40), intent(in) :: dm2_file, dm2hfname, dm2hflname
+      ! Renamed input parameters to avoid conflicts
+      character(len=40), intent(in) :: dm2_file_in, dm2hfname, dm2hflname
       character(len=10), intent(in) :: output_type  ! "full", "c1", "c2", "all"
-      type(grid_type), intent(in) :: grid
-      type(grid_type) :: grid_2
-      integer ::i
+      type(grid_type), intent(in) :: grid1
+      type(grid_type) :: grid2
+      integer :: i
 
-      do i = 1,3  !
-         grid_2%max_vals(i) = 0.0_dp
-         grid_2%step_sizes(i) = 0.0_dp
+      do i = 1,3
+         grid2%max_vals(i) = 0.0_dp
+         grid2%step_sizes(i) = 0.0_dp
       enddo
 
       ! Initialize pair density module
-      call initialize_pair_density(dm2_file, dm2hfname, dm2hflname)
+      call initialize_pair_density(dm2_file_in, dm2hfname, dm2hflname)
 
       ! Enable properties based on output_type
       if (output_type == "full" .or. output_type == "all") then
@@ -330,19 +333,19 @@ contains
       if (is_property_enabled("Full Pair Nucleus Density")) then
          write(*,*) "Generating full pair Nucleus Density cube file..."
          call write_cube_file_pair("full_pair_density_nucleus.cube", "Full Pair Nucleus Density", &
-                              full_pd_adapter, grid, grid_2)
+                              full_pd_adapter, grid1, grid2)
       end if
 
       if (is_property_enabled("C1 Pair Nucleus Density")) then
          write(*,*) "Generating C1 pair Nucleus Density cube file..."
          call write_cube_file_pair("c1_pair_density_nucleus.cube", "C1 Pair Nucleus Density", &
-                              c1_pd_adapter, grid, grid_2)
+                              c1_pd_adapter, grid1, grid2)
       end if
 
       if (is_property_enabled("C2 Pair Nucleus Density")) then
          write(*,*) "Generating C2 pair Nucleus Density cube file..."
          call write_cube_file_pair("c2_pair_density_nucleus.cube", "C2 Pair Nucleus Density", &
-                              c2_pd_adapter, grid, grid_2)
+                              c2_pd_adapter, grid1, grid2)
       end if
 
       ! Cleanup
