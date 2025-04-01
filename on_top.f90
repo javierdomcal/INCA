@@ -226,7 +226,7 @@ subroutine ontop_calculation(dm2_file, output_type, grid)
 
     character(len=40), intent(in) :: dm2_file
     character(len=10), intent(in) :: output_type  ! "density" or "all"
-    type(grid), intent(in) :: grid
+    type(grid_type), intent(in) :: grid
 
     ! Process the DM2 file and set up calculations
     call ontop(dm2_file)

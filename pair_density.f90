@@ -254,7 +254,7 @@ contains
 
       character(len=40), intent(in) :: dm2_file, dm2hfname, dm2hflname
       character(len=10), intent(in) :: output_type  ! "full", "c1", "c2", "all"
-      type(grid), intent(in) :: grid, grid_2
+      type(grid_type), intent(in) :: grid, grid_2
 
       ! Initialize pair density module
       call initialize_pair_density(dm2_file, dm2hfname, dm2hflname)
@@ -301,8 +301,8 @@ contains
 
       character(len=40), intent(in) :: dm2_file, dm2hfname, dm2hflname
       character(len=10), intent(in) :: output_type  ! "full", "c1", "c2", "all"
-      type(grid), intent(in) :: grid
-      type(grid) :: grid_2
+      type(grid_type), intent(in) :: grid
+      type(grid_type) :: grid_2
       integer ::i
 
       do i = 1,3  !

@@ -21,6 +21,15 @@ module pair_density
    character*40 :: pair_density_filename
 end module pair_density
 
+module properties_module
+   type :: property_info
+    character(len=40) :: name
+    character(len=80) :: argument
+    logical :: enabled
+end type property_info
+type(property_info), allocatable :: properties(:)
+end module properties_module
+
 module inputdat
 implicit none
  logical :: readwfx, readlog, cube_flag, primcube, aocube, MOcube, denscube, gradient, laplacian, intracalc, id, ontop_hf
@@ -43,6 +52,10 @@ implicit none
  character*40 :: namec1
  character*40 :: dm2name
 
+ character*40 :: dm2_file
+character*40 :: dm2hf_file
+character*40 :: dm2hfl_file
+integer :: num_properties
     ! Add scanning variables
  integer, allocatable :: atom_indices(:)
  character*1, allocatable :: scan_directions(:)
@@ -59,12 +72,13 @@ logical :: indicator_dynamic_enabled  ! Flag for indicator dynamic
 character(len=10) :: density_output_type  ! "total", "alpha", "beta", "spin", "hf", "all"
 character(len=10) :: pair_density_output_type  ! "full", "c1", "c2", "all"
 
-    type :: grid
+    type :: grid_type
         double precision, dimension(3) :: max_vals
         double precision, dimension(3) :: step_sizes
-    end type grid
+    end type grid_type
 
-type(grid) :: grid, grid_2  ! 3D grid parameters
+type(grid_type) :: grid
+type(grid_type) :: grid_2  ! 3D grid parameters
 
 integer :: max_properties  ! Maximum number of single properties
 integer :: max_pair_properties  ! Maximum number of pair properties
