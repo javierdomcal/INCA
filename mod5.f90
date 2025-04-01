@@ -77,8 +77,6 @@ character(len=10) :: pair_density_output_type  ! "full", "c1", "c2", "all"
         double precision, dimension(3) :: step_sizes
     end type grid_type
 
-type(grid_type) :: grid
-type(grid_type) :: grid_2  ! 3D grid parameters
 
 integer :: max_properties  ! Maximum number of single properties
 integer :: max_pair_properties  ! Maximum number of pair properties
