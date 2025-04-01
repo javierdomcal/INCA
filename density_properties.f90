@@ -136,7 +136,7 @@ contains
       use properties  ! For property access
 
       character(len=10), intent(in) :: output_type  ! "total", "alpha", "beta", "spin", "hf", "all"
-      type(grid), intent(in) :: grid
+      type(grid_type), intent(in) :: grid
 
       ! Initialize density module
       call initialize_density_properties()

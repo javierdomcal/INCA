@@ -18,7 +18,7 @@ contains
                 double precision :: value
             end function property_function
         end interface
-        type(grid), intent(in) :: grid
+        type(grid_type), intent(in) :: grid
 
         integer :: i, j, k, icount, iatom
         double precision :: x, y, z
@@ -93,7 +93,7 @@ contains
                 double precision :: value
             end function pair_property_function
         end interface
-        type(grid), intent(in) :: grid, grid_2
+        type(grid_type), intent(in) :: grid, grid_2
 
         integer :: i1, j1, k1, i2, j2, k2, icount, iatom
         double precision :: x1, y1, z1, x2, y2, z2

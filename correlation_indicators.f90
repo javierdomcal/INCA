@@ -83,7 +83,7 @@ subroutine indicator_calculation(output_type, grid)
     use properties         ! For property access
 
     character(len=10), intent(in) :: output_type  ! "dynamic" or "all"
-    type(grid), intent(in) :: grid
+    type(grid_type), intent(in) :: grid
 
     ! Initialize indicators module
     call initialize_indicators()
