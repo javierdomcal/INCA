@@ -49,7 +49,7 @@ implicit none
  integer :: n_atoms_scan, n_directions
  real*8 :: end_distance, step_size
  logical :: ontop_cube_output
- logical :: Grid_2
+ logical :: Grid_2_flag
 
  ! Add to the existing module inputdat
 logical, allocatable :: density_properties_enabled(:)  ! Array for enabled density properties
