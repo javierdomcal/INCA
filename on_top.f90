@@ -199,9 +199,9 @@ contains
       call ontop(dm2_file_name)
 
       ! Generate cube file for on-top density
-      if (output_type == "all" .or. output_type == "ontop") then
+      if (output_type == "all" .or. output_type == "on_top") then
          write(*,*) "Generating on-top density cube file..."
-         call write_cube_file("ontop_density.cube", "On-Top Density", &
+         call write_cube_file("ontop_density.cube", "on_top", &
                              get_ontop_value)
       end if
 

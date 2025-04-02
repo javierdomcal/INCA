@@ -24,33 +24,27 @@ call initialize_properties(max_properties)
 ! Make property information available to the properties module
 call set_property_info(requested_properties, property_arguments, num_properties)
 
+write(*,*) num_properties
+write(*,*) requested_properties
+write(*,*) property_arguments
+
 ! Enable requested properties
 do i = 1, num_properties
-    call enable_property(requested_properties(i))
+    if (requested_properties(i) == "density") then
+        call density_calculation(property_arguments(i))
+    else if (requested_properties(i) == "on_top") then
+        call ontop_calculation(dm2_file, property_arguments(i))
+    else if (requested_properties(i) == "indicator") then
+        call indicator_calculation(property_arguments(i))
+    else if (requested_properties(i) == "pair_density") then
+        call pair_density_calculation(dm2_file, dm2hf_file, dm2hfl_file, &
+                                      property_arguments(i))
+    else if (requested_properties(i) == "pair_density_nucleus") then
+        call pair_density_nucleus_calculation(dm2_file, dm2hf_file, dm2hfl_file, &
+                                             property_arguments(i))
 end do
 
-! Perform calculations
-if (is_property_enabled("density")) then
-    call density_calculation(get_property_argument("density"))
-end if
 
-if (is_property_enabled("on_top")) then
-    call ontop_calculation(dm2_file, get_property_argument("on_top"))
-end if
-
-if (is_property_enabled("indicator")) then
-    call indicator_calculation(get_property_argument("indicator"))
-end if
-
-if (is_property_enabled("pair_density")) then
-    call pair_density_calculation(dm2_file, dm2hf_file, dm2hfl_file, &
-                                  get_property_argument("pair_density"))
-end if
-
-if (is_property_enabled("pair_density_nucleus")) then
-    call pair_density_nucleus_calculation(dm2_file, dm2hf_file, dm2hfl_file, &
-                                         get_property_argument("pair_density_nucleus"))
-end if
 
 ! Clean up memory
 if (allocated(requested_properties)) deallocate(requested_properties)

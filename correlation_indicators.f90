@@ -1,5 +1,4 @@
 module correlation_indicators
-   use, intrinsic :: iso_fortran_env, only: dp => real64
    use wfxinfo
    use geninfo
    use properties, only: register_single_property, single_property_func
@@ -26,8 +25,8 @@ contains
 
    ! Implementation of indicator dynamic property
    function indicator_dynamic(r) result(value)
-      real(dp), dimension(3), intent(in) :: r
-      real(dp) :: value
+      double precision, dimension(3), intent(in) :: r
+      double precision :: value
 
       value = calculate_indicator_at_point(r(1), r(2), r(3))
    end function indicator_dynamic
