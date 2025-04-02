@@ -3,7 +3,6 @@
 ! This module handles full pair density, and its components (C1 and C2)
 
 module pair_density_module
-   use, intrinsic :: iso_fortran_env, only: dp => real64
    use wfxinfo
    use geninfo
    use wfxinfo_hf
@@ -116,8 +115,8 @@ contains
 
    ! Implementation of full pair density for property system
    function full_pair_density(r1, r2) result(value)
-      real(dp), dimension(3), intent(in) :: r1, r2
-      real(dp) :: value
+      double precision, dimension(3), intent(in) :: r1, r2
+      double precision :: value
 
       ! Cache DM2 elements if not already done
       call cache_dm2_file(dm2_file_data)
@@ -128,9 +127,9 @@ contains
 
    ! Implementation of C1 pair density (static correlation)
    function c1_pair_density(r1, r2) result(value)
-      real(dp), dimension(3), intent(in) :: r1, r2
-      real(dp) :: value
-      real(dp) :: pd_hfl, pd_hf
+      double precision, dimension(3), intent(in) :: r1, r2
+      double precision :: value
+      double precision :: pd_hfl, pd_hf
 
       ! First get HFL pair density
       call cache_dm2_file(dm2hfl_file_data)
@@ -146,9 +145,9 @@ contains
 
    ! Implementation of C2 pair density (dynamic correlation)
    function c2_pair_density(r1, r2) result(value)
-      real(dp), dimension(3), intent(in) :: r1, r2
-      real(dp) :: value
-      real(dp) :: pd_full, pd_hfl
+      double precision, dimension(3), intent(in) :: r1, r2
+      double precision :: value
+      double precision :: pd_full, pd_hfl
 
       ! First get full pair density
       call cache_dm2_file(dm2_file_data)
@@ -222,10 +221,10 @@ contains
    function c1_pd_adapter(x1, y1, z1, x2, y2, z2) result(value)
       double precision, intent(in) :: x1, y1, z1, x2, y2, z2
       double precision :: value
-      real(dp) :: r1(3), r2(3)
+      double precision :: r1(3), r2(3)
 
-      r1 = [real(dp) :: x1, y1, z1]
-      r2 = [real(dp) :: x2, y2, z2]
+      r1 = [double precision :: x1, y1, z1]
+      r2 = [double precision :: x2, y2, z2]
       value = c1_pair_density(r1, r2)
    end function c1_pd_adapter
 
@@ -233,10 +232,10 @@ contains
    function c2_pd_adapter(x1, y1, z1, x2, y2, z2) result(value)
       double precision, intent(in) :: x1, y1, z1, x2, y2, z2
       double precision :: value
-      real(dp) :: r1(3), r2(3)
+      double precision :: r1(3), r2(3)
 
-      r1 = [real(dp) :: x1, y1, z1]
-      r2 = [real(dp) :: x2, y2, z2]
+      r1 = [double precision :: x1, y1, z1]
+      r2 = [double precision :: x2, y2, z2]
       value = c2_pair_density(r1, r2)
    end function c2_pd_adapter
 

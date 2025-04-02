@@ -1,195 +1,96 @@
-! density_properties.f90
-! Module for electron density and related properties
-! This module handles registration and calculation of various density properties
-
 module density_properties
-   use, intrinsic :: iso_fortran_env, only: dp => real64
    use wfxinfo
    use geninfo
    use wfxinfo_hf
-   use properties, only: register_single_property, single_property_func, enable_property, is_property_enabled
-   use inputdat, only: grid_type  ! Explicitly import grid_type
-   use cube_module, only: write_cube_file  ! Import the necessary function
+   use cube_module, only: write_cube_file
    implicit none
 
    ! External function declarations
-   double precision, external :: Density, Dens_a, Dens_b, Dens_hf, MoOr, MO_a, MO_b
-
-   ! Module state
-   logical, private :: initialized = .false.
+   double precision, external :: Density, Dens_a, Dens_b, Dens_hf
 
 contains
+   ! Density calculation functions compatible with single_prop_func interface
+   function density_calc(x, y, z) result(value)
+      double precision, intent(in) :: x, y, z
+      double precision :: value
+      value = Density(x, y, z)
+   end function density_calc
 
-   ! Initialize the module
-   subroutine initialize_density_properties()
-      procedure(single_property_func), pointer :: total_density_func => null()
-      procedure(single_property_func), pointer :: alpha_density_func => null()
-      procedure(single_property_func), pointer :: beta_density_func => null()
-      procedure(single_property_func), pointer :: spin_density_func => null()
-      procedure(single_property_func), pointer :: hf_density_func => null()
+   function alpha_density(x, y, z) result(value)
+      double precision, intent(in) :: x, y, z
+      double precision :: value
+      value = Dens_a(x, y, z)
+   end function alpha_density
 
-      if (initialized) return
+   function beta_density(x, y, z) result(value)
+      double precision, intent(in) :: x, y, z
+      double precision :: value
+      value = Dens_b(x, y, z)
+   end function beta_density
 
-      ! Register electron density properties
-      total_density_func => total_electron_density
-      alpha_density_func => alpha_electron_density
-      beta_density_func => beta_electron_density
-      spin_density_func => spin_density
-      hf_density_func => hartree_fock_density
-
-      call register_single_property("Electron Density", &
-                                  "Total electron density ρ(r)", total_density_func)
-
-      call register_single_property("Alpha Density", &
-                                  "Alpha electron density ρα(r)", alpha_density_func)
-
-      call register_single_property("Beta Density", &
-                                  "Beta electron density ρβ(r)", beta_density_func)
-
-      call register_single_property("Spin Density", &
-                                  "Spin density ρα(r)-ρβ(r)", spin_density_func)
-
-      call register_single_property("HF Density", &
-                                  "Hartree-Fock electron density", hf_density_func)
-
-      initialized = .true.
-      write(*,*) "Density properties module initialized."
-   end subroutine initialize_density_properties
-
-   ! Implementation of total electron density for property system
-   function total_electron_density(r) result(value)
-      real(dp), dimension(3), intent(in) :: r
-      real(dp) :: value
-
-      value = Density(r(1), r(2), r(3))
-   end function total_electron_density
-
-   ! Implementation of alpha electron density for property system
-   function alpha_electron_density(r) result(value)
-      real(dp), dimension(3), intent(in) :: r
-      real(dp) :: value
-
-      value = Dens_a(r(1), r(2), r(3))
-   end function alpha_electron_density
-
-   ! Implementation of beta electron density for property system
-   function beta_electron_density(r) result(value)
-      real(dp), dimension(3), intent(in) :: r
-      real(dp) :: value
-
-      value = Dens_b(r(1), r(2), r(3))
-   end function beta_electron_density
-
-   ! Implementation of spin density for property system
-   function spin_density(r) result(value)
-      real(dp), dimension(3), intent(in) :: r
-      real(dp) :: value
-
-      value = Dens_a(r(1), r(2), r(3)) - Dens_b(r(1), r(2), r(3))
+   function spin_density(x, y, z) result(value)
+      double precision, intent(in) :: x, y, z
+      double precision :: value
+      value = Dens_a(x, y, z) - Dens_b(x, y, z)
    end function spin_density
 
-   ! Implementation of Hartree-Fock density for property system
-   function hartree_fock_density(r) result(value)
-      real(dp), dimension(3), intent(in) :: r
-      real(dp) :: value
-
-      value = Dens_hf(r(1), r(2), r(3))
-   end function hartree_fock_density
-
-   ! Adapter functions for cube file generation
-   function density_adapter(x, y, z) result(value)
+   function hf_density(x, y, z) result(value)
       double precision, intent(in) :: x, y, z
       double precision :: value
-
-      value = Density(x, y, z)
-   end function density_adapter
-
-   function alpha_density_adapter(x, y, z) result(value)
-      double precision, intent(in) :: x, y, z
-      double precision :: value
-
-      value = Dens_a(x, y, z)
-   end function alpha_density_adapter
-
-   function beta_density_adapter(x, y, z) result(value)
-      double precision, intent(in) :: x, y, z
-      double precision :: value
-
-      value = Dens_b(x, y, z)
-   end function beta_density_adapter
-
-   function spin_density_adapter(x, y, z) result(value)
-      double precision, intent(in) :: x, y, z
-      double precision :: value
-
-      value = Dens_a(x, y, z) - Dens_b(x, y, z)
-   end function spin_density_adapter
-
-   function hf_density_adapter(x, y, z) result(value)
-      double precision, intent(in) :: x, y, z
-      double precision :: value
-
       value = Dens_hf(x, y, z)
-   end function hf_density_adapter
+   end function hf_density
 
    ! Entry point for density calculations
    subroutine density_calculation(output_type)
-      character(len=10), intent(in) :: output_type  ! "total", "alpha", "beta", "spin", "hf", "all"
+      character(len=10), intent(in) :: output_type
 
-      ! Initialize density module
-      call initialize_density_properties()
+      select case(output_type)
+         case('total')
+            write(*,*) "Generating electron density cube file..."
+            call write_cube_file("density.cube", "Electron Density", &
+                                 density_calc)
 
-      ! Enable properties based on output_type
-      if (output_type == "total" .or. output_type == "all") then
-         call enable_property("Electron Density")
-      end if
+         case('alpha')
+            write(*,*) "Generating alpha density cube file..."
+            call write_cube_file("alpha_density.cube", "Alpha Electron Density", &
+                                 alpha_density)
 
-      if (output_type == "alpha" .or. output_type == "all") then
-         call enable_property("Alpha Density")
-      end if
+         case('beta')
+            write(*,*) "Generating beta density cube file..."
+            call write_cube_file("beta_density.cube", "Beta Electron Density", &
+                                 beta_density)
 
-      if (output_type == "beta" .or. output_type == "all") then
-         call enable_property("Beta Density")
-      end if
+         case('spin')
+            write(*,*) "Generating spin density cube file..."
+            call write_cube_file("spin_density.cube", "Spin Density", &
+                                 spin_density)
 
-      if (output_type == "spin" .or. output_type == "all") then
-         call enable_property("Spin Density")
-      end if
+         case('hf')
+            write(*,*) "Generating Hartree-Fock density cube file..."
+            call write_cube_file("hf_density.cube", "Hartree-Fock Density", &
+                                 hf_density)
 
-      if (output_type == "hf" .or. output_type == "all") then
-         call enable_property("HF Density")
-      end if
+         case('all')
+            write(*,*) "Generating all density cube files..."
 
-      ! Generate cube files based on enabled properties
-      if (is_property_enabled("Electron Density")) then
-         write(*,*) "Generating electron density cube file..."
-         call write_cube_file("density.cube", "Electron Density", &
-                             density_adapter)
-      end if
+            call write_cube_file("density.cube", "Electron Density", &
+                                 density_calc)
 
-      if (is_property_enabled("Alpha Density")) then
-         write(*,*) "Generating alpha density cube file..."
-         call write_cube_file("alpha_density.cube", "Alpha Electron Density", &
-                             alpha_density_adapter)
-      end if
+            call write_cube_file("alpha_density.cube", "Alpha Electron Density", &
+                                 alpha_density)
 
-      if (is_property_enabled("Beta Density")) then
-         write(*,*) "Generating beta density cube file..."
-         call write_cube_file("beta_density.cube", "Beta Electron Density", &
-                             beta_density_adapter)
-      end if
+            call write_cube_file("beta_density.cube", "Beta Electron Density", &
+                                 beta_density)
 
-      if (is_property_enabled("Spin Density")) then
-         write(*,*) "Generating spin density cube file..."
-         call write_cube_file("spin_density.cube", "Spin Density", &
-                             spin_density_adapter)
-      end if
+            call write_cube_file("spin_density.cube", "Spin Density", &
+                                 spin_density)
 
-      if (is_property_enabled("HF Density")) then
-         write(*,*) "Generating Hartree-Fock density cube file..."
-         call write_cube_file("hf_density.cube", "Hartree-Fock Density", &
-                             hf_density_adapter)
-      end if
+            call write_cube_file("hf_density.cube", "Hartree-Fock Density", &
+                                 hf_density)
+
+         case default
+            write(*,*) "Invalid density output type: ", output_type
+      end select
    end subroutine density_calculation
 
 end module density_properties

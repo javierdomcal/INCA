@@ -3,7 +3,7 @@
 ! It includes subroutines for writing cube files based on scalar and pairwise property functions.
 
 module cube_module
-    use inputdat
+     use inputdat
     use geninfo
     implicit none
 
@@ -15,7 +15,7 @@ contains
         interface
             function property_function(x, y, z) result(value)
                 double precision, intent(in) :: x, y, z
-                double precision :: value
+                double precision, :: value
             end function property_function
         end interface
 
